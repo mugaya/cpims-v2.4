@@ -1,1 +1,2 @@
-# cpims-v2.4
+# cpimsv2.2
+CPIMS v 2.2
