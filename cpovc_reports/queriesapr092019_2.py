@@ -2529,27 +2529,22 @@ WHERE reg_org_unit.id in ({cbos}) AND (ovc_care_assessment.domain in ('DHNU','DP
 AND (ovc_care_events.event_type_id = 'FSAM') AND (ovc_care_events.date_of_event BETWEEN '{start_date}' AND '{end_date}')
 )
 '''
-
 QUERIES['cpara'] = '''
 Select * from vw_cpims_cpara
 WHERE cbo_id in ({cbos}) AND (vw_cpims_cpara.date_of_event BETWEEN '{start_date}' AND '{end_date}');
 '''
-
 QUERIES['case_plan'] = '''
 Select * from vw_cpims_case_plan
 WHERE cbo_id in ({cbos}) AND (vw_cpims_case_plan.date_of_event BETWEEN '{start_date}' AND '{end_date}');
 '''
-
 QUERIES['served_two_quaters'] = '''
-select * from vw_cpims_two_quarters
+select * from * vw_cpims_two_quarters
 WHERE cboid in ({cbos}) AND (date_of_event BETWEEN '{start_date}' AND '{end_date}');
 '''
-
 QUERIES['benchmark'] = '''
 select * from vw_cpims_mer_benchmark_achieved
 WHERE cboid in ({cbos}) AND (date_of_event BETWEEN '{start_date}' AND '{end_date}');
 '''
-
 QUERIES['datim_mer_23'] = '''
 select count(distinct vw_cpims_exits.person_id) as WardGraduated,vw_cpims_exits.ward_id INTO TEMP temp_ExitsGraduated from vw_cpims_exits
 LEFT OUTER JOIN vw_cpims_graduated ON vw_cpims_exits.person_id = vw_cpims_graduated.person_id
@@ -2577,15 +2572,13 @@ AND (exit_status = 'EXITED' AND (registration_date <= '{end_date}' AND (exit_dat
 --query 4
 SELECT count(distinct person_id) AS NO_CATEGORY, ward_id INTO TEMP temp_ExitsNO_CATEGORY from vw_cpims_exits
 where  datimexitreason = 'NO_CATEGORY' AND vw_cpims_exits.cbo_id IN ({cbos}) AND
-(exit_status = 'EXITED' AND (registration_date <= '{end_date}' AND (exit_date BETWEEN '{start_date}' AND '{end_date}'))) 
-GROUP BY ward_id;
+(exit_status = 'EXITED' AND (registration_date <= '{end_date}' AND (exit_date BETWEEN '{start_date}' AND '{end_date}'))) GROUP BY ward_id;
 
 
 --query 5 Attrition
 SELECT count(distinct person_id) AS ATTRITION, ward_id INTO TEMP temp_Attrition from vw_cpims_exits
 where  datimexitreason = 'ATTRITION' AND vw_cpims_exits.cbo_id IN ({cbos}) AND
-(exit_status = 'EXITED' AND (registration_date <= '{end_date}' AND (exit_date BETWEEN '{start_date}' AND '{end_date}'))) 
-GROUP BY ward_id;
+(exit_status = 'EXITED' AND (registration_date <= '{end_date}' AND (exit_date BETWEEN '{start_date}' AND '{end_date}'))) GROUP BY ward_id;
 
 --query 6 Active Beneficiary
 SELECT count(distinct cpims_ovc_id) AS ACTIVEBENEFICIARY, ward_id INTO TEMP temp_Actives_Ben from vw_cpims_active_beneficiary
@@ -2664,7 +2657,7 @@ group by ovcid,CBO, ward, County,AgeRange,tbl_pepfar.ward_id,tbl_pepfar.countyid
 --Active OVCs, should be only OVCs Served
 select
 CAST(COUNT(DISTINCT cpims_ovc_id) AS integer) AS OVCCount,
-ward,County,ward_id 
+ward,County,ward_id as wardid
 into TEMP temp_ActiveBeneficiaries
 from vw_cpims_Registration
 where vw_cpims_registration.cbo_id in ({cbos}) AND ((exit_status = 'ACTIVE' and vw_cpims_registration.registration_date <= '{end_date}')
@@ -2673,7 +2666,7 @@ where vw_cpims_registration.cbo_id in ({cbos}) AND ((exit_status = 'ACTIVE' and 
 AND NOT
       (vw_cpims_Registration.schoollevel = 'Not in School' AND  vw_cpims_Registration.age > 17)
  and cpims_ovc_id in (select ovcid from temp_datimservices)
- group by  ward,County,ward_id ;
+ group by  ward,County,wardid ;
 
 
 
@@ -2813,7 +2806,7 @@ left outer join temp_Actives_Ben ON temp_Actives_Ben.ward_id=temp_DatimServices.
 LEFT OUTER JOIN temp_ExitsGraduated
  ON temp_ExitsGraduated.Ward_Id = temp_DatimServices.Ward_id
 LEFT OUTER  JOIN temp_ExitsTRANSFERRED_TO_PEPFAR_SUPPORTED_PARTNER
- ON temp_ExitsTRANSFERRED_TO_PEPFAR_SUPPORTED_PARTNER.Ward_ID = temp_DatimServices.Ward_id
+ ON temp_ExitsTRANSFERRED_TO_PEPFAR_SUPPORTED_PARTNER.WARD_ID = temp_DatimServices.Ward_id
 LEFT OUTER  JOIN temp_ExitsTRANSFERRED_TO_NON_PEPFAR_SUPPORTED_PARTNER
  ON temp_ExitsTRANSFERRED_TO_NON_PEPFAR_SUPPORTED_PARTNER.Ward_id = temp_DatimServices.Ward_id
 left outer join temp_Attrition ON temp_Attrition.ward_id=temp_DatimServices.ward_id
