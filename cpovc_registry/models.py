@@ -6,6 +6,7 @@ from django.db import models
 from django.utils import timezone
 from django.db.models.signals import pre_save
 from django.dispatch import receiver
+# from django.contrib.postgres.indexes import GinIndex
 from cpovc_auth.models import AppUser
 
 
@@ -116,11 +117,11 @@ class RegPerson(models.Model):
 
     designation = models.CharField(max_length=25, null=True)
     first_name = models.CharField(max_length=255)
-    other_names = models.CharField(max_length=255, null=True)
+    other_names = models.CharField(max_length=255, null=True, blank=True)
     surname = models.CharField(max_length=255, default=None)
     email = models.EmailField(blank=True, null=True)
     des_phone_number = models.IntegerField(null=True, blank=True, default=None)
-    date_of_birth = models.DateField(null=True)
+    date_of_birth = models.DateField(null=True, blank=True)
     date_of_death = models.DateField(null=True, blank=True, default=None)
     sex_id = models.CharField(max_length=4,
                               choices=[('SMAL', 'Male'), ('SFEM', 'Female')])
@@ -186,7 +187,8 @@ class RegPerson(models.Model):
 
     def __unicode__(self):
         """To be returned by admin actions."""
-        return '%s %s %s' % (self.first_name, self.other_names, self.surname)
+        onames = ' %s' % (self.other_names) if self.other_names else ''
+        return '%s %s%s' % (self.first_name, self.surname, onames)
 
 
 class RegBiometric(models.Model):
@@ -206,7 +208,7 @@ class RegBiometric(models.Model):
 
     def __unicode__(self):
         """To be returned by admin actions."""
-        return '%s %s %s' % (self.account)
+        return '%s' % (self.account)
 
 
 class RegPersonsGuardians(models.Model):
@@ -280,8 +282,8 @@ class RegPersonsTypes(models.Model):
         """Override table details."""
 
         db_table = 'reg_persons_types'
-        verbose_name = 'Person Type Registry'
-        verbose_name_plural = 'Person Types Registries'
+        verbose_name = 'Person Type (Child, Caregiver, other)'
+        verbose_name_plural = 'Person Types (Child, Caregiver, other)'
 
 
 class RegPersonsGeo(models.Model):
@@ -306,6 +308,8 @@ class RegPersonsGeo(models.Model):
         """Override table details."""
 
         db_table = 'reg_persons_geo'
+        verbose_name = 'Person Geographical area (Ward, Sub-county)'
+        verbose_name_plural = 'Person Geographical areas (Ward, Sub-county)'
 
 
 class RegPersonsExternalIds(models.Model):
@@ -325,6 +329,10 @@ class RegPersonsExternalIds(models.Model):
         """Override table details."""
 
         db_table = 'reg_persons_external_ids'
+
+    def __unicode__(self):
+        """To be returned by admin actions."""
+        return '%s' % (self.identifier)
 
 
 class RegPersonsContact(models.Model):
@@ -352,7 +360,7 @@ class RegPersonsOrgUnits(models.Model):
     person = models.ForeignKey(RegPerson)
     org_unit = models.ForeignKey(RegOrgUnit)
     date_linked = models.DateField(null=True)
-    date_delinked = models.DateField(null=True)
+    date_delinked = models.DateField(null=True, blank=True)
     primary_unit = models.BooleanField(default=False)
     reg_assistant = models.BooleanField(default=False)
     is_void = models.BooleanField(default=False)
@@ -361,6 +369,8 @@ class RegPersonsOrgUnits(models.Model):
         """Override table details."""
 
         db_table = 'reg_persons_org_units'
+        verbose_name = 'Persons Organisation Unit'
+        verbose_name_plural = 'Persons Organisation Units'
 
 
 class RegPersonsWorkforceIds(models.Model):
@@ -480,7 +490,7 @@ class OVCHouseHold(models.Model):
     id = models.UUIDField(
         primary_key=True, default=uuid.uuid4, editable=False)
     index_child = models.ForeignKey(RegPerson, related_name='index_child')
-    members = models.CharField(max_length=200)
+    members = models.TextField()
     is_void = models.BooleanField(default=False)
     timestamp_created = models.DateTimeField(default=timezone.now)
 
@@ -488,6 +498,7 @@ class OVCHouseHold(models.Model):
         """Override table details."""
 
         db_table = 'reg_household'
+        # indexes = [GinIndex(fields=['members'])]
 
 
 class PersonsMaster(models.Model):
@@ -504,6 +515,26 @@ class PersonsMaster(models.Model):
         """Override table details."""
 
         db_table = 'reg_person_master'
+
+
+class RegPersonsOtherGeo(models.Model):
+    """Model for Persons Other Geography."""
+    # Imported here because of cyclic importation
+    from cpovc_main.models import SetupLocation
+
+    person = models.OneToOneField(RegPerson)
+    country_code = models.CharField(max_length=4, null=True)
+    city = models.CharField(max_length=150, null=True)
+    location = models.ForeignKey(SetupLocation, null=True)
+    date_linked = models.DateField(null=True)
+    is_void = models.BooleanField(default=False)
+
+    class Meta:
+        """Override table details."""
+
+        db_table = 'reg_person_other_geo'
+        verbose_name = 'Person Geo area (Country, City, Location)'
+        verbose_name_plural = 'Person Geo areas (Country, City, Location)'
 
 
 @receiver(pre_save, sender=RegOrgUnit)

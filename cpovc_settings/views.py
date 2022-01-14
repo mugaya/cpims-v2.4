@@ -3,29 +3,47 @@ import csv
 import time
 import pandas as pd
 from datetime import datetime
-from django.db import connection
 from django.shortcuts import render
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.core.urlresolvers import reverse
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from .forms import SettingsForm
+from .functions import (
+    handle_duplicates, get_duplicates, remove_duplicates)
 from django.conf import settings
 from cpovc_ovc.models import OVCFacility, OVCSchool
 from cpovc_access.views import open_terms
 from cpovc_reports.queries import QUERIES
 from cpovc_reports.functions import run_sql_data, get_variables
+from cpovc_main.functions import get_dict
 
 MEDIA_ROOT = settings.MEDIA_ROOT
 
 
-# Create your views here.
 @login_required
-def settings_home(request):
+def settings_duplicates(request):
     """Method to do pivot reports."""
     try:
-        return render(request, 'settings/home.html', {'form': {}})
-    except Exception, e:
+        duplicates = get_duplicates(request)
+        check_fields = ['sex_id', 'case_category_id']
+        vals = get_dict(field_name=check_fields)
+        if request.method == 'POST':
+            action = request.POST.get('action_id')
+            action_id = int(action) if action else 0
+            if action_id == 2:
+                # Remove duplicates
+                res = remove_duplicates(request)
+            else:
+                res = handle_duplicates(request)
+            status = res['status']
+            msg = res['message']
+            results = {"status": status, "message": msg}
+            return JsonResponse(results, content_type='application/json',
+                                safe=False)
+        return render(request, 'settings/duplicates.html',
+                      {'results': duplicates, 'vals': vals})
+    except Exception as e:
         raise e
     else:
         pass
@@ -42,7 +60,9 @@ def settings_reports(request):
         for filename in os.listdir(directory):
             is_admin = True if request.user.is_superuser else False
             is_allowed = True if filename.startswith(user_in) else is_admin
-            if (filename.endswith(".xlsx") or filename.endswith(".xlsm") ) and is_allowed:
+            chk_xlsx = filename.endswith(".xlsx")
+            chk_xlsm = filename.endswith(".xlsm")
+            if (chk_xlsx or chk_xlsm) and is_allowed:
                 rname = os.path.join(directory, filename)
                 cdate = os.stat(rname)
                 (md, ino, dev, nnk, uid, gid, size, atm, mtime, ctime) = cdate
@@ -51,7 +71,7 @@ def settings_reports(request):
                 report = [report_name, create_date, filename]
                 reports.append(report)
         return render(request, 'settings/reports.html', {'reports': reports})
-    except Exception, e:
+    except Exception as e:
         raise e
     else:
         pass
@@ -70,7 +90,7 @@ def archived_reports(request, file_name):
                 response['Content-Disposition'] = 'inline; filename=' + \
                     os.path.basename(file_path)
                 return response
-    except Exception, e:
+    except Exception as e:
         raise e
     else:
         pass
@@ -87,7 +107,7 @@ def remove_reports(request, file_name):
             msg = "File named %s removed Successfully" % (file_name)
             messages.info(request, msg)
         return HttpResponseRedirect(reverse(settings_reports))
-    except Exception, e:
+    except Exception as e:
         msg = "COuld not remove %s: %s." % (file_name, str(e))
         messages.error(request, msg)
         return HttpResponseRedirect(reverse(settings_reports))
@@ -104,14 +124,15 @@ def settings_facilities(request):
             search_param = str(request.POST.get('facility'))
             if search_param.isdigit():
                 facilities = OVCFacility.objects.filter(
-                facility_code=search_param)
+                    facility_code=search_param)
             else:
                 facilities = OVCFacility.objects.filter(
                     facility_name__icontains=search_param)
         else:
             facilities = OVCFacility.objects.all().order_by('-id')[:1000]
-        return render(request, 'settings/facilities.html', {'facilities': facilities})
-    except Exception, e:
+        return render(request, 'settings/facilities.html',
+                      {'facilities': facilities})
+    except Exception as e:
         raise e
     else:
         pass
@@ -127,9 +148,9 @@ def settings_schools(request):
             schools = OVCSchool.objects.filter(
                 school_name__icontains=search_param)
         else:
-             schools = OVCSchool.objects.all().order_by('-id')[:1000]
+            schools = OVCSchool.objects.all().order_by('-id')[:1000]
         return render(request, 'settings/schools.html', {'schools': schools})
-    except Exception, e:
+    except Exception as e:
         raise e
     else:
         pass
@@ -145,7 +166,7 @@ def write_excel(data, csv_file, xlsx_file):
         df_new = pd.read_csv(csv_file)
         writer = pd.ExcelWriter(xlsx_file, engine='xlsxwriter')
         df_new.to_excel(writer, sheet_name='Sheet1', index=False)
-        # This is it       
+        # This is it
         workbook = writer.book
         workbook.add_worksheet('Sheet2')
         workbook.add_worksheet('Sheet3')
@@ -176,7 +197,7 @@ def qstorows(desc, rows):
                 vals.append(val)
             data.append(vals)
     except Exception as e:
-        print 'error getting rows - %s' % (str(e))
+        print('error getting rows - %s' % (str(e)))
         return []
     else:
         return data
@@ -201,8 +222,9 @@ def settings_rawdata(request):
         for filename in os.listdir(directory):
             is_admin = True if request.user.is_superuser else False
             is_allowed = True if filename.startswith(user_in) else is_admin
-            if (filename.endswith(".xlsx") or filename.endswith(".xlsm") ) and is_allowed:
-                print filename
+            chk_xlsx = filename.endswith(".xlsx")
+            chk_xlsm = filename.endswith(".xlsm")
+            if (chk_xlsx or chk_xlsm) and is_allowed:
                 rname = os.path.join(directory, filename)
                 cdate = os.stat(rname)
                 (md, ino, dev, nnk, uid, gid, size, atm, mtime, ctime) = cdate
@@ -213,16 +235,16 @@ def settings_rawdata(request):
         if request.method == 'POST':
             form = SettingsForm(request.user, data=request.POST)
             params = get_variables(request)
-            print 'PARAMS', params
+            print('PARAMS', params)
             raw_data = request.POST.get('raw_data')
             org_unit = request.POST.get('org_unit')
             cluster = request.POST.get('cluster')
             if not org_unit and not cluster:
-                 msg = "You must provide either Org Unit or Cluster"
-                 messages.error(request, msg)
-                 return render(request, 'settings/data.html',
-                      {'reports': reports, 'form': form, 'results': results,
-                       'file_name': file_name})
+                msg = "You must provide either Org Unit or Cluster"
+                messages.error(request, msg)
+                return render(request, 'settings/data.html',
+                              {'reports': reports, 'form': form,
+                               'results': results, 'file_name': file_name})
             rid = int(raw_data) if raw_data else 1
             query_name = dqs[rid]
             sql = QUERIES[query_name].replace(';', '')
@@ -231,7 +253,6 @@ def settings_rawdata(request):
             csv_file_name = '%s/csv/%s' % (MEDIA_ROOT, csv_file)
             xlsx_file = '%s.xlsx' % (fname)
             final_sql = sql.format(**params)
-            print 'SQL', final_sql
             # rows = my_custom_sql(final_sql)
             rows, desc = run_sql_data(request, final_sql)
             # print '99999', desc
@@ -244,11 +265,11 @@ def settings_rawdata(request):
                 messages.info(request, msg)
             else:
                 msg = "Query returned 0 Results"
-                messages.error(request, msg)   
+                messages.error(request, msg)
         return render(request, 'settings/data.html',
                       {'reports': reports, 'form': form, 'results': results,
                        'file_name': file_name})
-    except Exception, e:
+    except Exception as e:
         raise e
     else:
         pass
@@ -262,7 +283,7 @@ def change_notes(request):
         return render(request, 'settings/changes.html',
                       {'term_title': 'Change Notes',
                        'term_detail': term_detail})
-    except Exception, e:
+    except Exception as e:
         raise e
     else:
         pass

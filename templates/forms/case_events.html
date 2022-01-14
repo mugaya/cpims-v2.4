@@ -39,9 +39,25 @@
 <!-- begin breadcrumb -->
 <ol class="breadcrumb pull-right">
     <li><a href="#">Home</a></li>
-    <li clasbootstrap-tas="active">Case Events</li>
+    <li class="active">Forms</li>
 </ol>
 <!-- end breadcrumb -->
+
+<!-- begin page-header -->
+{% for data in init_data %}
+<h1 class="page-header">Forms <small>Manage Case Events <b>{{ data.first_name }} {{ data.surname }} | {{ data.sex_id|gen_value:vals }} | {% if data.date_of_birth|gen_age == 0 %}
+                            UNDER 1 YEAR
+                        {% else %}
+                            {{ data.date_of_birth|gen_age }} YRS 
+                        {% endif %}</b></small></h1>
+{% endfor %}
+<!-- end page-header -->
+
+<div id="messages" class="alert alert-danger fade in" style="display: none;" tabindex="1">
+    <span class="close" data-dismiss="alert">×</span>
+    <i class="fa fa-check fa-2x pull-left"></i>
+    <p class="invalid-form-message"></p>
+</div>
 
 {% if messages %}
 <div id="messages" class="alert alert-success fade in">
@@ -97,64 +113,28 @@
     </ul>
 </div>
 
-<!-- begin page-header -->
-<div class="profile-section">
-    <!-- begin row -->
-    <div class="row">
-        <!-- begin col-4 -->
-        <div class="col-md-4">
-            <h4 class="title"><small>About Child</small></h4>
-            {% for data in init_data %}
-                <h1 class="page-header">Forms <small>Manage Case Events <b>{{ data.first_name }} {{ data.surname }} | {{ data.sex_id|gen_value:vals }} | {% if data.date_of_birth|gen_age == 0 %}
-                            UNDER 1 YEAR
-                        {% else %}
-                            {{ data.date_of_birth|gen_age }} YRS 
-                        {% endif %}</b></small></h1>
-
-                <!--
-                <h6>NAME : <i> {{ data.first_name }} {{ data.surname }}</i></h6>
-                <h6>SEX : <i> {{ data.sex_id|gen_value:vals }}</i></h6>
-                <h6>DATE OF BIRTH : <i> {{ data.date_of_birth }}</i></h6>
-                <h6>
-                AGE IN YEARS :
-                    <i>
-                        {% if data.date_of_birth|gen_age == 0 %}
-                            UNDER 1 YEAR
-                        {% else %}
-                            {{ data.date_of_birth|gen_age }} YRS 
-                        {% endif %}
-                     </i>
-                </h6>
-                -->
-            {% endfor %}
-        </div>
-    </div>
-</div>
-<!-- end page-header -->
-
 <div id="messages" class="alert alert-danger fade in" style="display: none;" tabindex="1">
     <span class="close" data-dismiss="alert">×</span>
     <i class="fa fa-check fa-2x pull-left"></i>
     <p class="invalid-form-message"></p>
 </div>
 
+<div class="invoice">
+    <div class="invoice-company">
+        <span class="pull-right hidden-print">
 
-<br><br>
-<div>
-    <div id="case_status_msg" align="right">
-    <small>
-        <button class="btn  btn-sm btn-primary active m-r-5" onClick="fnNavigateBack()">  
+        <button class="btn btn-sm btn-primary active m-r-5 m-b-5" onClick="fnNavigateBack()">  
         <i class="fa fa-arrow-left"></i>&nbsp; <b>BACK TO FOLLOW-UPS </b>                       
         </button>
-    </small>
-    {% for resultset in  resultsets %}
+        
+        {% for resultset in  resultsets %}
         {% for result in  resultset %}
             {% for res in result.c_record %}
 
                 {% if result.c_close %}
                     {% for res2 in result.c_close %}                    
                         <small>
-                            <button id="btn_case_status" class="btn  btn-sm btn-danger active m-r-5" onClick="fnOpenDialog('CaseStatus')">
+                            <button id="btn_case_status" class="btn  btn-sm btn-danger active m-r-5 m-b-5" onClick="fnOpenDialog('CaseStatus')">
                             {% if res2.transfer_to_id %}
                                 <b>{{ res.case_status }} TO {{ res2.transfer_to_id|gen_orgunitname }}</b>
                             {% else %}
@@ -165,7 +145,7 @@
                     {% endfor %}
                 {% else %}
                 <small>
-                    <button id="btn_case_status" class="btn  btn-sm btn-danger active m-r-5" onClick="fnOpenDialog('CaseStatus')">
+                    <button id="btn_case_status" class="btn  btn-sm btn-danger active m-r-5 m-b-5" onClick="fnOpenDialog('CaseStatus')">
                         <b>{{ res.case_status }}</b>      
                     </button>
                 </small>
@@ -173,6 +153,25 @@
             {% endfor %}
         {% endfor %}
     {% endfor %}
+        
+        <a href="{% url 'cpims_document' doc_id='CRS' case_id=case_id %}" class="btn btn-sm btn-danger m-r-5 m-b-5"><i class="fa fa-file-pdf-o m-r-5"></i> Export as PDF</a>
+        <div class="btn-group m-r-5 m-b-5">
+            <a href="#" class="btn btn-success">Case Actions</a>
+            <a href="javascript:;" data-toggle="dropdown" class="btn btn-success dropdown-toggle">
+                <span class="caret"></span>
+            </a>
+            <ul class="dropdown-menu pull-right">
+                <li><a href="#" onClick="fnOpenDialog('Services')"><i class="fa fa-gears"></i> Manage Encounter / Services</a></li>
+                <li><a href="#" onClick="fnOpenDialog('Court')"><i class="fa fa-legal"></i> Manage Court Session</a></li>
+                <li><a href="#" onClick="fnOpenDialog('Summon')"><i class="fa fa-wechat"></i> Manage Summons</a></li>
+                <li><a href="#" onClick="fnOpenDialog('Referral')"><i class="fa fa-share"> Manage Referals</i></a></li>
+                <li><a href="#" onClick="fnOpenDialog('Closure')"><i class="fa fa-close"></i> Close Case</a></li>
+                <li class="divider"></li>
+                <li><a href="{% url 'case_info' case_id=case_id %}"><i class="fa fa-expand"></i> Add Case Information</a></li>
+            </ul>
+        </div>
+        </span>
+        CASE SUMMARY
     </div>
 <div>
 
@@ -182,9 +181,8 @@
         <div class="row">
             <!-- begin col-4 -->
             <div id="div_case_summary" class="col-md-12">
-                <h4 class="title">Case Summary <small>Database Information</small></h4>
                 <!-- begin scrollbar -->
-                <div data-scrollbar="true" data-height="150px" class="bg-silver">
+                <div data-scrollbar="true" data-height="100px" class="bg-silver">
                     <table class="table">
                         <thead>                                
                             <th>Case Serial</th>
@@ -265,8 +263,7 @@
                                     <tbody>
                                     </tbody>
                                     </table>
-                                </div>
-                                <br><br>                           
+                                </div>                        
                             </div>
                         </div>
                         <!-- end panel -->
@@ -567,7 +564,7 @@
                                     </h4>
                                 </div>
                                 <div class="modal-body">
-
+                                    <div class="row">
                                     <div id="summon_msgs" class="alert alert-danger fade in" style="display:none;">
                                         <span class="close" data-dismiss="alert">×</span>
                                         <i class="fa fa-close fa-2x pull-left"></i>
@@ -575,75 +572,87 @@
                                             <small><p></p></small>
                                         </ul>
                                     </div>
-                                <!--
-                                <div class="form-group">
-                                    <h6><label class="control-label col-md-4 col-sm-4">Total Number Of Summons :</label></h6>
-                                    <div class="col-md-6 col-sm-6">
-                                        <h6><b> 0 </b></h6>
+                                    <!--
+                                    <div class="form-group">
+                                        <h6><label class="control-label col-md-4 col-sm-4">Total Number Of Summons :</label></h6>
+                                        <div class="col-md-6 col-sm-6">
+                                            <h6><b> 0 </b></h6>
+                                        </div>
                                     </div>
-                                </div>
-                                <br><br>
-                                -->
-                                {{ form.case_event_id_summon }}
+                                    <br><br>
+                                    -->
+                                    {{ form.case_event_id_summon }}
 
-                                {{ form.reported_date }}
+                                    {{ form.reported_date }}
 
-                                <div class="form-group">
-                                    <h6><label class="control-label col-md-4 col-sm-4">Summon Count: </label></h6>
-                                    <div class="col-md-6 col-sm-6">
-                                        <b>{{ summon_count }}</b><span id="summon_count" style="display:none;">{{ summon_count }}</span>
+                                    <div class="form-group">
+                                        <h6><label class="control-label col-md-4 col-sm-4">Summon Count: </label></h6>
+                                        <div class="col-md-6 col-sm-6" id="summon_count_text">
+                                            <b>{{ summon_count }}</b>
+                                        </div>
+                                        <input type="hidden" id="summon_count" name="summon_count" value="{{ summon_count }}">
                                     </div>
-                                </div>
 
-                                <!--
-                                <br><br>
-                                <div class="form-group">
-                                    <h6><label class="control-label col-md-4 col-sm-4">Date Of Visit:<span class="asteriskField"> *</span></label></h6>
-                                    <div class="col-md-6 col-sm-6">
-                                        {{ form.visit_date }}
-                                        <div id="summons_msgs5" style="display:none;">
-                                            <small><span><p class="dialog_paragraph">This value is required</p></span></small>
+                                    <!--
+                                    <br><br>
+                                    <div class="form-group">
+                                        <h6><label class="control-label col-md-4 col-sm-4">Date Of Visit:<span class="asteriskField"> *</span></label></h6>
+                                        <div class="col-md-6 col-sm-6">
+                                            {{ form.visit_date }}
+                                            <div id="summons_msgs5" style="display:none;">
+                                                <small><span><p class="dialog_paragraph">This value is required</p></span></small>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                                -->
-                                <br><br> 
-                                <div id="div_honoured_date" class="form-group">
-                                    <h6><label class="control-label col-md-4 col-sm-4">Date Of Visit:<span class="asteriskField"> *</span></label></h6>
-                                    <div class="col-md-6 col-sm-6">
-                                        {{ form.honoured_date }}
-                                        <div id="summons_msgs2" style="display:none;">
-                                            <small><span><p class="dialog_paragraph">This value is required</p></span></small>
+                                    -->
+                                    <br><br> 
+                                    <div id="div_honoured_date" class="form-group">
+                                        <h6><label class="control-label col-md-4 col-sm-4">Date Of Visit:<span class="asteriskField"> *</span></label></h6>
+                                        <div class="col-md-6 col-sm-6">
+                                            {{ form.honoured_date }}
+                                            <div id="summons_msgs2" style="display:none;">
+                                                <small><span><p class="dialog_paragraph">This value is required</p></span></small>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                                <br><br>                                 
-                                <div class="form-group">
-                                    <h6><label class="control-label col-md-4 col-sm-4">Summon Honored ? :<span class="asteriskField"> *</span></label></h6>
-                                    <div class="col-md-6 col-sm-6">
-                                        {{ form.honoured }}
-                                        <div id="summons_msgs1" style="display:none;">
-                                            <small><span><p class="dialog_paragraph">This value is required</p></span></small>
+                                    <br><br>                                 
+                                    <div class="form-group">
+                                        <h6><label class="control-label col-md-4 col-sm-4">Summon Honored ? :<span class="asteriskField"> *</span></label></h6>
+                                        <div class="col-md-6 col-sm-6">
+                                            {{ form.honoured }}
+                                            <div id="summons_msgs1" style="display:none;">
+                                                <small><span><p class="dialog_paragraph">This value is required</p></span></small>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                                <br><br>                                                               
-                                <div id="div_summon_date" style="display:none;" class="form-group">
-                                    <h6><label class="control-label col-md-4 col-sm-4">Date Of Next Summon:<span class="asteriskField"> *</span></label></h6>
-                                    <div class="col-md-6 col-sm-6">
-                                        {{ form.summon_date }}
-                                        <div id="summons_msgs3" style="display:none;">
-                                            <small><span><p class="dialog_paragraph">This value is required</p></span></small>
+                                    <br><br>
+                                    <div id="div_summon_next" style="display:none;" class="form-group">
+                                        <h6><label class="control-label col-md-4 col-sm-4">Next Summon Required:<span class="asteriskField"> *</span></label></h6>
+                                        <div class="col-md-6 col-sm-6">
+                                            {{ form.summon_next }}
+                                            <div id="summons_msgs5" style="display:none;">
+                                                <small><span><p class="dialog_paragraph">This value is required</p></span></small>
+                                            </div>
                                         </div>
+                                        <br><br>
                                     </div>
-                                </div>                                
-                                <br><br>
-                                <div class="form-group">
-                                    <h6><label class="control-label col-md-4 col-sm-4">Notes :<span class="asteriskField"> *</span></label></h6>
-                                    <div class="col-md-6 col-sm-6">
-                                        {{ form.summon_note }}
-                                        <div id="summons_msgs4" style="display:none;">
-                                            <small><span><p class="dialog_paragraph">This value is required</p></span></small>
+                                    <div id="div_summon_date" style="display:none;" class="form-group">
+                                        <h6><label class="control-label col-md-4 col-sm-4">Date Of Next Summon:<span class="asteriskField"> *</span></label></h6>
+                                        <div class="col-md-6 col-sm-6">
+                                            {{ form.summon_date }}
+                                            <div id="summons_msgs3" style="display:none;">
+                                                <small><span><p class="dialog_paragraph">This value is required</p></span></small>
+                                            </div>
+                                        </div>
+                                        <br><br>
+                                    </div>                             
+                                    <div class="form-group">
+                                        <h6><label class="control-label col-md-4 col-sm-4">Notes :<span class="asteriskField"> *</span></label></h6>
+                                        <div class="col-md-6 col-sm-6">
+                                            {{ form.summon_note }}
+                                            <div id="summons_msgs4" style="display:none;">
+                                                <small><span><p class="dialog_paragraph">This value is required</p></span></small>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -812,7 +821,6 @@
                                         </ul>
                                     </div>
 
-                                    <br>
                                         <!--
                                         <div class="form-group">
                                             <h6><label class="control-label col-md-4 col-sm-4">Close Case? :<span class="asteriskField"> *</span></label></h6>
@@ -924,7 +932,6 @@
             </div>
             <!-- End OVC Results Row -->  
 
-        <br>
         <!--<div class="row" align="center"> -->
         <div align="center">
             <!--
@@ -950,7 +957,7 @@
 
         </div>
 
-        <br><br>
+        <br>
     </div>
   </div>
 </div>
@@ -1065,6 +1072,12 @@ function fnOpenDialog(dialog_type)
      if(dialog_type == 'Summon')
     {
         $('#summons-dialog').modal('show');
+        var summon_count = parseInt($('#summon_count').val());
+        if (summon_count >= 3 ){ 
+            $("#btn_save_summon").hide();
+            var sm_text = summon_count + "(Maximum Achieved)";
+            $('#summon_count_text').html(sm_text);
+        };
     }
     if(dialog_type == 'Referral')
     {
@@ -2818,7 +2831,7 @@ function fnSaveCourtSession(){
             if(court_outcome)
             {
                 values['court_outcome'] = court_outcome;
-                if(court_outcome == 'CRUL'||court_outcome == 'CRJD'||court_outcome == 'CRCT')
+                if(court_outcome == 'CRUL'|| court_outcome == 'CRJD'|| court_outcome == 'CRCT')
                 {
                     if(court_order)
                     {
@@ -2905,39 +2918,12 @@ function fnSaveCourtSession(){
                 {
                     values['application_outcome'] = application_outcome;
 
-                    if(application_outcome == 'APGR')
+                    if(application_outcome == 'APGR' || application_outcome == 'APNG')
                     {
-                        if(court_outcome)
+                        if(court_notes)
                         {
-                            values['court_outcome'] = court_outcome;
-                            if(court_outcome == 'CRUL'||court_outcome == 'CRJD'||court_outcome == 'CRCT')
-                            {
-                                if(court_order)
-                                {
-                                    values['court_order'] = court_order.toString();
-                                }
-                                else
-                                {
-                                    $("#court_msgs6").css({ 'display': "block" });
-                                    $("#court_msgs").css({ 'display': "block" }); 
-                                    $('#court_msgs p').html('Please fill the missing values');
-                                    return false;
-                                }  
-                            }  
-                            if(court_outcome == 'CADJ')
-                            {
-                                if(next_hearing_date)
-                                {
-                                    values['next_hearing_date'] = next_hearing_date;
-                                }
-                                else
-                                {
-                                    $("#court_msgs5").css({ 'display': "block" });
-                                    $("#court_msgs").css({ 'display': "block" }); 
-                                    $('#court_msgs p').html('Please fill the missing values');
-                                    return false;
-                                }
-                            }                    
+                            values['court_notes'] = court_notes;
+             
                         }
                         else
                         {
@@ -3049,7 +3035,7 @@ function fnViewCourtSession(case_event_id){
                         $('#div_court_order').css({'display': 'block'})
                         $('#court_order').val(court_order)
                         $('#court_order').multiselect('refresh')
-                        displayVals('court_order');
+                        //displayVals('court_order');
                     }
                 }  
 
@@ -3641,8 +3627,8 @@ function fnSaveSummons(){
     var summon_date = $('#summon_date').val();
     // var visit_date = $('#visit_date').val();
     var summon_note = $('#summon_note').val();
+    var summon_next = $('#summon_next').val();
     
-    values['summon_note'] = summon_note;
 
     if(honoured_date)
     {
@@ -3656,6 +3642,11 @@ function fnSaveSummons(){
         return false;
     }
 
+    var summon_count = parseInt($('#summon_count').val());
+    if (summon_count >= 3 ){ 
+        $("#btn_save_summon").hide();
+    };
+
     if(honoured)
     {
         values['honoured'] = honoured;
@@ -3665,23 +3656,36 @@ function fnSaveSummons(){
         }
         if(honoured=='ANNO')
         {
-            var summon_count = parseInt($('#summon_count').html());
+           
             if(summon_count >= 2)
             {
                 values['summon_date'] = null;
             }
             else
             {
+                if (summon_next){
+                    values['summon_next'] = summon_next;
+                }else{
+                    $("#summons_msgs5").css({ 'display': "block" });
+                    $("#summon_msgs").css({ 'display': "block" });
+                    $('#summon_msgs p').html('Please fill the missing values');
+                    return false;
+                }
+
                 if(summon_date)
                 {
                     values['summon_date'] = summon_date;
                 }
                 else
                 {
-                    $("#summons_msgs3").css({ 'display': "block" });
-                    $("#summon_msgs").css({ 'display': "block" });
-                    $('#summon_msgs p').html('Please fill the missing values');
-                    return false;
+                     if (summon_next == 'ANNO'){
+                        values['summon_date'] = null;
+                    }else{
+                       $("#summons_msgs3").css({ 'display': "block" });
+                       $("#summon_msgs").css({ 'display': "block" });
+                       $('#summon_msgs p').html('Please fill the missing values');
+                       return false;    
+                    }
                 }
             }            
         }
@@ -3692,19 +3696,40 @@ function fnSaveSummons(){
         $("#summon_msgs").css({ 'display': "block" });
         $('#summon_msgs p').html('Please fill the missing values');
         return false;
-    } 
+    }
+
+    // Make notes mandatory
+    if(summon_note)
+    {
+        values['summon_note'] = summon_note;
+    }
+    else
+    {
+        $("#summons_msgs4").css({ 'display': "block" });
+        $("#summon_msgs").css({ 'display': "block" });
+        $('#summon_msgs p').html('Please fill the missing values');
+        return false;
+    }
 
     // Save Summons
     $.ajax({
             url: '{% url 'save_summon' %}',
-            dataType: 'text',
+            dataType: 'json',
             method: 'POST',
             contentType: 'application/x-www-form-urlencoded',
             data: values,
             success: function(result)
             {
+                var summon_count = result.summon_count;
+                console.log(summon_count);
+                $('#summon_count_text').html(summon_count);
+                $('#summon_count').val(summon_count);
                 $("#ce_msgs").css({ 'display': "block" });
                 $('#ce_msgs p').html(crudMsg);
+
+                if (summon_count >= 3) {
+                     $("#btn_save_summon").hide();
+                }
 
                 LoadCaseEvents();
 
@@ -3719,7 +3744,6 @@ function fnSaveSummons(){
                 console.log(error)
             }
         });
-      
 }
 
 function fnViewSummon(case_event_id){
@@ -3762,12 +3786,16 @@ function fnViewSummon(case_event_id){
                         if(summon_date)
                         {  
                             $('#div_summon_date').css({'display': 'block'});                          
-                            $('#summon_date').val(summon_date);                             
+                            $('#summon_date').val(summon_date);
+                            $('#div_summon_next').css({'display': 'block'});
+                            $('#summon_next').val('AYES');                              
                         }
                         else
                         {
                             $('#div_summon_date').css({'display': 'none'});                          
-                            $('#summon_date').val('');                             
+                            $('#summon_date').val('');
+                            $('#div_summon_next').css({'display': 'block'});
+                            $('#summon_next').val('ANNO');                             
                         }
                     }
                     $('#summon_note').val(summon_note);
@@ -3797,6 +3825,7 @@ function fnUpdateSummons(case_event_id){
     var summon_date = $('#summon_date').val();
     // var visit_date = $('#visit_date').val();
     var summon_note = $('#summon_note').val();
+    var summon_next = $('#summon_next').val();
     
     values['summon_note'] = summon_note;
 
@@ -3834,10 +3863,14 @@ function fnUpdateSummons(case_event_id){
                 }
                 else
                 {
-                    $("#summons_msgs3").css({ 'display': "block" });
-                    $("#summon_msgs").css({ 'display': "block" });
-                    $('#summon_msgs p').html('Please fill the missing values');
-                    return false;
+                    if (summon_next == 'ANNO'){
+                        values['summon_date'] = null;
+                    }else{
+                       $("#summons_msgs3").css({ 'display': "block" });
+                       $("#summon_msgs").css({ 'display': "block" });
+                       $('#summon_msgs p').html('Please fill the missing values');
+                       return false;    
+                    }
                 }
             }            
         }
@@ -4122,31 +4155,34 @@ $("#honoured").change(function(event)
     if(honoured == 'AYES')
     {
         $('#div_summon_date').css({'display': 'none'});
-        // $('#div_honoured_date').css({'display': 'block'});       
+        // $('#div_honoured_date').css({'display': 'block'});
+        $('#div_summon_next').css({'display': 'none'});      
     }
     else if(honoured == 'ANNO')
     {
         // $('#div_honoured_date').css({'display': 'none'});
         // $('#honoured_date').val('');
 
-        var summon_count = parseInt($('#summon_count').html());
+        var summon_count = parseInt($('#summon_count').val());
         if(summon_count >= 2)
         {
             $('#div_summon_date').css({'display': 'none'});
             $('#summon_date').val('');
+            $('#div_summon_next').css({'display': 'none'});
+            $('#summon_next').val('');
         }
         else
         {
-            $('#div_summon_date').css({'display': 'block'}); 
+            $('#div_summon_date').css({'display': 'block'});
+            $('#div_summon_next').css({'display': 'block'});
 
             // reconfigure date_of_next_summon
-            var reported_date = $('#reported_date').datepicker('getDate');
-            var new_date_case_opened = reported_date.getDate() + '/' 
-                                        + (reported_date.getMonth() + 1) + '/' 
-                                        + reported_date.getFullYear(); 
+            var reported_date = $('#reported_date').datepicker({ dateFormat: 'dd-M-yyyy' }).val();
+            
             $('#summon_date').datepicker('remove');
+            // console.log(new_date_case_opened);
             $('#summon_date').datepicker({ 
-                startDate: new_date_case_opened,
+                startDate: reported_date,
                 // endDate: new_date_case_opened,
                 format: 'dd-M-yyyy'
             });          
@@ -4155,7 +4191,9 @@ $("#honoured").change(function(event)
     else
     {
         $('#div_summon_date').css({'display': 'none'});
-        $('#summon_date').val('')
+        $('#summon_date').val('');
+        $('#div_summon_next').css({'display': 'none'});
+        $('#summon_next').val('');
     }
     $("#summons_msgs1").css({ 'display': "none" });
 });
@@ -4168,6 +4206,18 @@ $("#honoured_date").change(function(event)
 $("#summon_date").change(function(event) 
 { 
     $("#summons_msgs3").css({ 'display': "none" });
+});
+// Next summon check
+$("#summon_next").change(function(event) 
+{ 
+    $("#summons_msgs5").css({ 'display': "none" });
+    var summon_next = $('#summon_next').val();
+    if (summon_next == 'AYES'){
+        $('#div_summon_date').css({'display': 'block'});
+    }else{
+        $('#div_summon_date').css({'display': 'none'});
+        $('#summon_date').val('');
+    }
 });
 
 
@@ -4446,16 +4496,14 @@ $('#next_hearing_date').datepicker().on('change.dp', function(e) {
 });
 
 $('#date_of_court_event').datepicker().on('change.dp', function(e) {
-    var date_of_court_event = $('#date_of_court_event').datepicker('getDate');
-    var new_court_event_date = (date_of_court_event.getDate() + 1) + '/' 
-                                + (date_of_court_event.getMonth() + 1) + '/' 
-                                + date_of_court_event.getFullYear(); 
+    var date_of_court_event = $('#date_of_court_event').datepicker(
+        { dateFormat: 'dd-M-yyyy' }).val();
 
     // Reconfigure next_mention_date
     $('#next_mention_date').val('');
     $('#next_mention_date').datepicker('remove');
     $('#next_mention_date').datepicker({ 
-        startDate: new_court_event_date,
+        startDate: date_of_court_event,
         format: 'dd-M-yyyy'
     });
 
@@ -4463,7 +4511,7 @@ $('#date_of_court_event').datepicker().on('change.dp', function(e) {
     $('#next_hearing_date').val('');
     $('#next_hearing_date').datepicker('remove');
     $('#next_hearing_date').datepicker({ 
-        startDate: new_court_event_date,
+        startDate: date_of_court_event,
         format: 'dd-M-yyyy'
     });
 });

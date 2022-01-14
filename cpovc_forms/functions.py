@@ -1,11 +1,57 @@
+from django.db import connection
+from datetime import datetime, timedelta
+from django.core.cache import cache
 from cpovc_registry.functions import (
     get_client_ip, get_meta_data)
 
 from cpovc_main.functions import get_general_list, convert_date
 from cpovc_forms.models import (
-    FormsAuditTrail, OVCCareF1B, OVCCareEvents, OVCEducationFollowUp, OVCCareCpara)
+    FormsAuditTrail, OVCCareF1B, OVCCareEvents, OVCCaseGeo,
+    OVCEducationFollowUp, OVCPlacement, OvcCaseInformation,
+    OVCCaseLocation)
 from cpovc_ovc.functions import get_house_hold
-from .models import OVCGokBursary
+from cpovc_main.models import ListAnswers
+
+
+def validate_serialnumber(person_id, subcounty, serial_number):
+    try:
+        serial_number_exists = OVCCaseRecord.objects.filter(
+            case_serial=serial_number, person_id=person_id)
+
+        if serial_number_exists:
+            return str(serial_number)
+        else:
+            # Get Year
+            now = datetime.now()
+            year = now.year
+
+            # Get County
+            countys = SetupGeography.objects.get(area_id=int(subcounty))
+            county = countys.parent_area_id
+            subcounty_code = countys.area_code
+
+            # Get CaseRecordNumber(AuotIncremental)
+            case_records = OVCCaseGeo.objects.filter(
+                report_subcounty=subcounty).count()
+            index = int(case_records) + 1
+
+            serial_number = 'CCO/' + \
+                str(county) + '/' + str(subcounty_code) + \
+                '/5/29/' + str(index) + '/' + str(year)
+    except Exception as e:
+        raise e
+    return str(serial_number)
+
+
+def get_case_geo(request, case_id):
+    """Get case details."""
+    try:
+        case_geo = OVCCaseGeo.objects.get(case_id=case_id, is_void=False)
+    except Exception as e:
+        print('error getting case geo - %s' % (str(e)))
+        return None
+    else:
+        return case_geo
 
 
 def save_audit_trail(request, params, audit_type):
@@ -19,7 +65,7 @@ def save_audit_trail(request, params, audit_type):
         interface_id = params['interface_id']
         meta_data = get_meta_data(request)
 
-        print 'Audit Trail', params
+        print('Audit Trail', params)
 
         FormsAuditTrail(
             transaction_type_id=transaction_type_id,
@@ -31,8 +77,8 @@ def save_audit_trail(request, params, audit_type):
             meta_data=meta_data,
             app_user_id=user_id).save()
 
-    except Exception, e:
-        print 'Error saving audit - %s' % (str(e))
+    except Exception as e:
+        print('Error saving audit - %s' % (str(e)))
         pass
     else:
         pass
@@ -55,7 +101,7 @@ def create_fields(field_name=[], default_txt=False):
                 dict_val[item_cat] = [items]
             else:
                 dict_val[item_cat].append(items)
-    except Exception, e:
+    except Exception as e:
         error = 'Error getting list - %s' % (str(e))
         print error
         return {}
@@ -121,6 +167,116 @@ def save_form1b(request, person_id, edit=0):
         return True
 
 
+def get_person_ids(request, name):
+    """Method to get persons."""
+    try:
+        pids = []
+        if name.isnumeric():
+            sql = "SELECT id FROM reg_person WHERE id = %s" % name
+            sql += " AND is_void=False"
+        else:
+            name = name.replace("'", "''")
+            names = name.split()
+            query = ("SELECT id FROM reg_person WHERE to_tsvector"
+                     "(first_name || ' ' || surname || ' '"
+                     " || COALESCE(other_names,''))"
+                     " @@ to_tsquery('english', '%s') AND is_void=False"
+                     " ORDER BY date_of_birth DESC")
+            # " OFFSET 10 LIMIT 10")
+            vals = ' & '.join(names)
+            sql = query % (vals)
+        print(sql)
+        with connection.cursor() as cursor:
+            cursor.execute(sql)
+            row = cursor.fetchall()
+            pids = [r[0] for r in row]
+    except Exception as e:
+        print('Error getting results - %s' % (str(e)))
+        return []
+    else:
+        print(pids)
+        return pids
+
+
+def update_case_stage(request, case, stage=1):
+    """Method to update case stage from pending."""
+    try:
+        case.case_stage = stage
+        case.save()
+    except Exception as e:
+        print("Error changing case stage - %s" % str(e))
+
+
+def get_exit(period, units, start_date, e_date):
+    """Method to get exit date."""
+    try:
+        print(period, units, start_date, e_date)
+        periods = {}
+        periods['CPYR'] = {'name': 'Years', 'units': 365}
+        periods['CPMN'] = {'name': 'Months', 'units': 30}
+        periods['CPWK'] = {'name': 'Weeks', 'units': 7}
+        periods['CPDA'] = {'name': 'Days', 'units': 7}
+        total_days = 0
+        today = datetime.now().date()
+        if units in periods:
+            unit = periods[units]
+            total_days = unit['units'] * period
+        exit_date = start_date + timedelta(days=total_days)
+        no_days = exit_date - today
+        if e_date:
+            no_days = e_date - start_date
+        dys = no_days.days
+        ck = 'to committal expiry'
+        if dys < 0:
+            ck = 'after committal expiry'
+            no_days = today - exit_date
+        print('exit', total_days, start_date, exit_date, dys)
+        # Get More
+        years = ((no_days.total_seconds()) / (365.242 * 24 * 3600))
+        years_int = int(years)
+
+        months = (years - years_int) * 12
+        months_int = int(months)
+
+        days = (months - months_int) * (365.242 / 12)
+        days_int = int(days)
+        years_val = '' if years_int == 0 else '%s years ' % (years_int)
+        mon_check = years_int > 0 and months_int > 0
+        months_val = '%s months ' % (months_int) if mon_check else ''
+        pds = '%s%s%s days' % (years_val, months_val, days_int)
+    except Exception as e:
+        print('Error calculating exit - %s' % str(e))
+        return 'No committal info', ''
+    else:
+        return pds, ck
+
+
+def get_stay(admission_date, exit_date):
+    """Method to get exit date."""
+    try:
+        if not exit_date:
+            exit_date = datetime.now().date()
+        no_days = exit_date - admission_date
+        # Get More
+        years = ((no_days.total_seconds()) / (365.242 * 24 * 3600))
+        years_int = int(years)
+
+        months = (years - years_int) * 12
+        months_int = int(months)
+
+        days = (months - months_int) * (365.242 / 12)
+        days_int = int(days)
+        years_val = '' if years_int == 0 else '%s years ' % (years_int)
+        mon_check = years_int > 0 and months_int > 0
+        months_val = '%s months ' % (months_int) if mon_check else ''
+        pds = '%s%s%s days' % (years_val, months_val, days_int)
+    except Exception as e:
+        print('Error calculating exit - %s' % str(e))
+        return None
+    else:
+        return pds
+
+
 def save_bursary(request, person_id):
     """Method to save bursary details."""
     try:
@@ -149,12 +305,11 @@ def save_bursary(request, person_id):
         mother_telephone = request.POST.get('mother_contact')
         guardian_names = request.POST.get('guardian_name')
         guardian_telephone = request.POST.get('guardian_contact')
-        # 
         guardian_relation = request.POST.get('guardian_relation')
         val_same_household = request.POST.get('living_with')
         same_household = True if val_same_household == 'AYES' else False
         val_father_chronic_ill = request.POST.get('father_ill')
-        father_chronic_ill = True if val_father_chronic_ill == 'AYES' else False
+        fc_ill = True if val_father_chronic_ill == 'AYES' else False
         father_chronic_illness = request.POST.get('father_illness')
         val_father_disabled = request.POST.get('father_disabled')
         father_disabled = True if val_father_disabled == 'AYES' else False
@@ -163,7 +318,7 @@ def save_bursary(request, person_id):
         father_pension = True if val_father_pension == 'AYES' else False
         father_occupation = request.POST.get('father_occupation')
         val_mother_chronic_ill = request.POST.get('mother_ill')
-        mother_chronic_ill = True if val_mother_chronic_ill == 'AYES' else False
+        mc_ill = True if val_mother_chronic_ill == 'AYES' else False
         mother_chronic_illness = request.POST.get('mother_illness')
         val_mother_disabled = request.POST.get('mother_disabled')
         mother_disabled = True if val_mother_disabled == 'AYES' else False
@@ -191,10 +346,11 @@ def save_bursary(request, person_id):
         school_bank_branch = request.POST.get('bank_branch')
         school_bank_account = request.POST.get('bank_account')
         school_recommend_by = request.POST.get('recommend_principal')
-        school_recommend_date = convert_date(request.POST.get('recommend_principal_date'))
-
+        school_recommend_date = convert_date(
+            request.POST.get('recommend_principal_date'))
         chief_recommend_by = request.POST.get('recommend_chief')
-        chief_recommend_date = convert_date(request.POST.get('recommend_chief_date'))
+        chief_recommend_date = convert_date(
+            request.POST.get('recommend_chief_date'))
         chief_telephone = request.POST.get('chief_telephone')
         csac_approved = request.POST.get('approved_csac')
         approved_amount = request.POST.get('approved_amount')
@@ -208,6 +364,15 @@ def save_bursary(request, person_id):
         csac_sign_date = convert_date(request.POST.get('date_signed_csac'))
         application_date = convert_date(request.POST.get('application_date'))
         app_user_id = request.user.id
+        # add missing fields
+
+        nemis = request.POST.get('nemis_no')
+        father_idno = request.POST.get('father_id')
+        mother_idno = request.POST.get('mother_id')
+        year_of_bursary_award = request.POST.get('year_of_bursary_award')
+        eligibility_score = request.POST.get('eligibility_scores')
+        date_of_issue = convert_date(request.POST.get('date_of_issue'))
+        status_of_student = request.POST.get('status_of_student')
 
         obj, created = OVCEducationFollowUp.objects.get_or_create(
             school_id=school_id, person_id=person_id,
@@ -228,59 +393,136 @@ def save_bursary(request, person_id):
             mother_telephone=mother_telephone, guardian_names=guardian_names,
             guardian_telephone=guardian_telephone,
             guardian_relation=guardian_relation, same_household=same_household,
-            father_chronic_ill=father_chronic_ill,
+            father_chronic_ill=fc_ill,
             father_chronic_illness=father_chronic_illness,
-            father_disabled=father_disabled, father_disability=father_disability,
-            father_pension=father_pension, father_occupation=father_occupation,
-            mother_chronic_ill=mother_chronic_ill,
+            father_disabled=father_disabled,
+            father_disability=father_disability,
+            father_pension=father_pension,
+            father_occupation=father_occupation,
+            mother_chronic_ill=mc_ill,
             mother_chronic_illness=mother_chronic_illness,
-            mother_disabled=mother_disabled, mother_disability=mother_disability,
-            mother_pension=mother_pension, mother_occupation=mother_occupation,
+            mother_disabled=mother_disabled,
+            mother_disability=mother_disability,
+            mother_pension=mother_pension,
+            mother_occupation=mother_occupation,
             fees_amount=fees_amount, fees_balance=fees_balance,
-            school_secondary=school_secondary, school_county_id=school_county_id,
+            school_secondary=school_secondary,
+            school_county_id=school_county_id,
             school_constituency_id=school_constituency_id,
-            school_sub_county=school_sub_county, school_location=school_location,
+            school_sub_county=school_sub_county,
+            school_location=school_location,
             school_sub_location=school_sub_location,
             school_village=school_village, school_telephone=school_telephone,
             school_email=school_email, school_type=school_type,
             school_category=school_category, school_enrolled=school_enrolled,
-            school_bank_id=school_bank_id, school_bank_branch=school_bank_branch,
-            school_bank_account=school_bank_account, school_recommend_by=school_recommend_by,
-            school_recommend_date=school_recommend_date, chief_recommend_by=chief_recommend_by,
-            chief_recommend_date=chief_recommend_date, chief_telephone=chief_telephone,
+            school_bank_id=school_bank_id,
+            school_bank_branch=school_bank_branch,
+            school_bank_account=school_bank_account,
+            school_recommend_by=school_recommend_by,
+            school_recommend_date=school_recommend_date,
+            chief_recommend_by=chief_recommend_by,
+            chief_recommend_date=chief_recommend_date,
+            chief_telephone=chief_telephone,
             csac_approved=csac_approved, approved_amount=approved_amount,
             ssco_name=scco_name, scco_signed=scco_signed,
             scco_sign_date=scco_sign_date, csac_chair_name=csac_chair_name,
             csac_signed=csac_signed, csac_sign_date=csac_sign_date,
-            app_user_id=app_user_id, application_date=application_date)
+            app_user_id=app_user_id, application_date=application_date,
+            nemis=nemis,
+            father_idno=father_idno,
+            mother_idno=mother_idno,
+            year_of_bursary_award=year_of_bursary_award,
+            eligibility_score=eligibility_score,
+            date_of_issue=date_of_issue,
+            status_of_student=status_of_student)
         gok_bursary.save()
     except Exception as e:
         print 'Error saving bursary - %s' % (str(e))
-    else:
-        return True
 
 
-def save_cpara_form_by_domain(id, question, answer, house_hold, event, date_event, exceptions=[]):
-    answer_value = {
-        'AYES': 'Yes',
-        'ANNO': 'No',
-        'No': 'No'
-    }
-    if answer is None:
-        answer = 'No'
-    if question.code.lower() not in exceptions:
-        answer = answer_value[answer]
+def get_placement(request, ou_id, person_id):
+    """Method to get organizatin units."""
     try:
-        OVCCareCpara.objects.create(
-            person_id=id,
-            question=question,
-            answer=answer,
-            household=house_hold,
-            question_type=question.question_type,
-            domain=question.domain,
-            event=event,
-            date_of_event=date_event
-        )
+        placement = OVCPlacement.objects.get(
+            residential_institution_id=ou_id,
+            person_id=person_id, is_active=True)
     except Exception as e:
-        print '%s :error saving cpara - %s' % (question.code, str(e))
-        return False
+        print('Child has not been placed - %s' % e)
+        return None
+    else:
+        return placement
+
+
+def get_questions(set_id, default_txt=None):
+    """Method to get set of questions list."""
+    try:
+        cache_key = 'question_list_%s' % (set_id)
+        cache_list = cache.get(cache_key)
+        if cache_list:
+            v_list = cache_list
+            print('FROM Cache %s' % (cache_key))
+        else:
+            v_list = ListAnswers.objects.filter(
+                answer_set_id=set_id, is_void=False)
+            cache.set(cache_key, v_list, 300)
+        my_list = v_list.values_list(
+            'answer_code', 'answer').order_by('the_order')
+        if default_txt:
+            initial_list = ('', default_txt)
+            final_list = [initial_list] + list(my_list)
+            return final_list
+    except Exception as e:
+        print('error - %s' % (e))
+        return ()
+    else:
+        return my_list
+
+
+def save_case_info(request, case, item_type, item_id, item_detail):
+    """method to save additional case information."""
+    try:
+        case_id = case.case_id
+        person_id = case.person_id
+        obj, created = OvcCaseInformation.objects.update_or_create(
+            case_id=case_id, person_id=person_id, info_type=item_type,
+            info_item=item_id, is_void=False,
+            defaults={'info_detail': item_detail},
+        )
+        print('Saved', obj, created)
+    except Exception as e:
+        print('Error saving case info - %s' % (e))
+        raise e
+    else:
+        return obj
+
+
+def get_case_info(request, case_id):
+    """Method to get all case info for a case."""
+    try:
+        case_infos = OvcCaseInformation.objects.filter(
+            case_id=case_id, is_void=False)
+    except Exception as e:
+        raise e
+    else:
+        return case_infos
+
+
+def save_case_other_geos(case_id, person_id, params={}):
+    """Save Persons other geo ares."""
+    try:
+        country_code = params['country'] if 'country' in params else None
+        city = params['city'] if 'city' in params else None
+        location = params['location'] if 'location' in params else None
+        sub_loc = params['sub_location'] if 'sub_location' in params else None
+        geo, created = OVCCaseLocation.objects.update_or_create(
+            case_id=case_id, person_id=person_id,
+            defaults={'report_country_code': country_code, 'report_city': city,
+                      'report_location_id': location,
+                      'report_sublocation_id': sub_loc,
+                      'is_void': False},)
+    except Exception, e:
+        error = 'Error saving other geos -%s' % (str(e))
+        print(error)
+        return None, None
+    else:
+        return geo, created

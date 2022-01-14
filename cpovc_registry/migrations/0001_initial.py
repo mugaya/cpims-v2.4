@@ -4,7 +4,6 @@ from __future__ import unicode_literals
 from django.db import migrations, models
 import django.utils.timezone
 from django.conf import settings
-import uuid
 
 
 class Migration(migrations.Migration):
@@ -15,30 +14,6 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.CreateModel(
-            name='OVCCheckin',
-            fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
-                ('is_ovc', models.BooleanField(default=True)),
-                ('is_void', models.BooleanField(default=False)),
-                ('timestamp_created', models.DateTimeField(default=django.utils.timezone.now)),
-            ],
-            options={
-                'db_table': 'ovc_checkin',
-            },
-        ),
-        migrations.CreateModel(
-            name='OVCHouseHold',
-            fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
-                ('members', models.CharField(max_length=200)),
-                ('is_void', models.BooleanField(default=False)),
-                ('timestamp_created', models.DateTimeField(default=django.utils.timezone.now)),
-            ],
-            options={
-                'db_table': 'reg_household',
-            },
-        ),
         migrations.CreateModel(
             name='OVCSibling',
             fields=[
@@ -59,33 +34,6 @@ class Migration(migrations.Migration):
             },
         ),
         migrations.CreateModel(
-            name='PersonsMaster',
-            fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
-                ('person_type', models.CharField(max_length=5, null=True)),
-                ('system_id', models.CharField(max_length=100, null=True)),
-                ('timestamp_created', models.DateTimeField(default=django.utils.timezone.now)),
-            ],
-            options={
-                'db_table': 'reg_person_master',
-            },
-        ),
-        migrations.CreateModel(
-            name='RegBiometric',
-            fields=[
-                ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
-                ('left_iris', models.BinaryField()),
-                ('right_iris', models.BinaryField()),
-                ('created_at', models.DateTimeField(default=django.utils.timezone.now)),
-                ('account', models.OneToOneField(to=settings.AUTH_USER_MODEL)),
-            ],
-            options={
-                'db_table': 'reg_biometric',
-                'verbose_name': 'Persons Biometric',
-                'verbose_name_plural': 'Persons Biometrics',
-            },
-        ),
-        migrations.CreateModel(
             name='RegOrgUnit',
             fields=[
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
@@ -94,7 +42,6 @@ class Migration(migrations.Migration):
                 ('org_unit_type_id', models.CharField(max_length=4)),
                 ('date_operational', models.DateField(null=True, blank=True)),
                 ('date_closed', models.DateField(null=True, blank=True)),
-                ('handle_ovc', models.BooleanField(default=False)),
                 ('is_void', models.BooleanField(default=False)),
                 ('parent_org_unit_id', models.IntegerField(null=True, blank=True)),
                 ('created_at', models.DateField(default=django.utils.timezone.now)),
@@ -170,9 +117,9 @@ class Migration(migrations.Migration):
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
                 ('designation', models.CharField(max_length=25, null=True)),
                 ('first_name', models.CharField(max_length=255)),
-                ('other_names', models.CharField(max_length=255, null=True)),
+                ('other_names', models.CharField(default=None, max_length=255)),
                 ('surname', models.CharField(default=None, max_length=255)),
-                ('email', models.EmailField(max_length=254, null=True, blank=True)),
+                ('email', models.EmailField(default=None, max_length=254, blank=True)),
                 ('des_phone_number', models.IntegerField(default=None, null=True, blank=True)),
                 ('date_of_birth', models.DateField(null=True)),
                 ('date_of_death', models.DateField(default=None, null=True, blank=True)),
@@ -332,11 +279,6 @@ class Migration(migrations.Migration):
             },
         ),
         migrations.AddField(
-            model_name='personsmaster',
-            name='person',
-            field=models.ForeignKey(to='cpovc_registry.RegPerson', null=True),
-        ),
-        migrations.AddField(
             model_name='ovcsibling',
             name='cpims',
             field=models.ForeignKey(related_name='ovc_cpims', to='cpovc_registry.RegPerson', null=True),
@@ -345,25 +287,5 @@ class Migration(migrations.Migration):
             model_name='ovcsibling',
             name='person',
             field=models.ForeignKey(related_name='ovc_sibling', to='cpovc_registry.RegPerson'),
-        ),
-        migrations.AddField(
-            model_name='ovchousehold',
-            name='index_child',
-            field=models.ForeignKey(related_name='index_child', to='cpovc_registry.RegPerson'),
-        ),
-        migrations.AddField(
-            model_name='ovccheckin',
-            name='org_unit',
-            field=models.ForeignKey(to='cpovc_registry.RegOrgUnit', null=True),
-        ),
-        migrations.AddField(
-            model_name='ovccheckin',
-            name='person',
-            field=models.ForeignKey(to='cpovc_registry.RegPerson'),
-        ),
-        migrations.AddField(
-            model_name='ovccheckin',
-            name='user',
-            field=models.ForeignKey(to=settings.AUTH_USER_MODEL),
         ),
     ]

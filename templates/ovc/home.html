@@ -120,10 +120,9 @@
                             <th>Sex</th>
                             <th>Date of Birth</th>
                             <th>CHW</th>
-                            <th>Caregiver</th>
                             <th>LIP/CBO</th>
                             <th>Status</th>                      
-                            <th width="5%">OVC Actions</th>
+                            <th width="5%">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -141,7 +140,6 @@
                              <td>{{ ovc.person.sex_id|gen_value:vals }}</td>
                              <td>{{ ovc.person.date_of_birth }}</td>
                              <td>{{ ovc.child_chv.full_name }}</td>
-                             <td>{{ ovc.caretaker.full_name }}</td>
                              <td>{{ ovc.child_cbo.org_unit_name }}</td>
                              <td>
                              {% if ovc.is_active %}Active{% else %}Exited{% endif %}
@@ -151,9 +149,9 @@
                              {% if ovc.registration_date.year == 1900 %}
                              <a href="{% url 'ovc_register' id=ovc.person.id %}"><button type="button" class="btn btn-sm btn-danger m-r-5"><i class="fa fa-pencil"></i>&nbsp;Finish Registration</button></a>
                              {% else %}
-                             <a href="{% url 'ovc_view' id=ovc.person.id %}"><button type="button" class="btn btn-sm btn-primary m-r-5"><i class="fa fa-binoculars"></i>&nbsp;View</button></a>
+                             <a href="{% url 'ovc_view' id=ovc.person.id %}"><button type="button" class="btn btn-sm btn-primary m-r-5"><i class="fa fa-binoculars"></i>&nbsp;View OVC</button></a>
 
-                             <a href="{% url 'ovc_edit' id=ovc.person.id %}"><button type="button" class="btn btn-sm btn-primary m-r-5"><i class="fa fa-pencil"></i>&nbsp;Edit</button></a>
+                             <a href="{% url 'ovc_edit' id=ovc.person.id %}"><button type="button" class="btn btn-sm btn-primary m-r-5"><i class="fa fa-pencil"></i>&nbsp;Edit OVC</button></a>
 
                              <button type="button" class="btn btn-sm btn-primary m-r-5" onClick="OpenForm({{ ovc.person.id }})"><i class="fa fa-check-square-o"></i>&nbsp;Fill Forms</button>
                              {% endif %}
@@ -255,10 +253,6 @@ function OpenForm(id)
         if(form_type == 'FSAM') 
         { 
             return window.location.href='{% url 'form1a_events' id=0 %}'.replace("0", id); 
-        }
-        if(form_type == 'FSCA') 
-        { 
-            return window.location.href='{% url 'new_form1b' id=0 %}'.replace("0", id); 
         }    
     });
         

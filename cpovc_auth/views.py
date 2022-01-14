@@ -13,7 +13,7 @@ from django.contrib.auth.models import Group
 from .functions import (
     save_group_geo_org, remove_group_geo_org, get_allowed_units_county,
     get_groups, save_temp_data, check_national, get_attached_units,
-    get_orgs_tree)
+    get_orgs_tree, get_profile, get_holiday)
 from .models import AppUser, CPOVCPermission
 from cpovc_registry.models import (
     RegPerson, RegPersonsExternalIds, RegPersonsOrgUnits, RegPersonsGeo)
@@ -40,7 +40,7 @@ def home(request):
     """Some default page for the home page / Dashboard."""
     try:
         return render(request, 'base.html', {'status': 200})
-    except Exception, e:
+    except Exception as e:
         raise e
 
 
@@ -60,6 +60,12 @@ def log_in(request):
                     if user.is_active:
                         login(request, user)
                         # grps = user.groups.all()
+                        if password == '1234':
+                            request.session['password_change_enforce'] = True
+                            msg = 'You are using the default password. '
+                            msg += 'Please change before the account is '
+                            msg += 'deactivated.'
+                            messages.add_message(request, messages.ERROR, msg)
                         perms = user.get_all_permissions()
                         """
                         group_ids = Group.objects.all().values_list(
@@ -70,7 +76,7 @@ def log_in(request):
                         # ------------------------------
                         perms = CPOVCPermission.objects.filter(
                             group__id__in=group_ids)
-                        print 'perms', perms.count()
+                        print('perms', perms.count())
                         pperms = Permission.objects.values('id', 'codename')
                         all_perms = {}
                         for pm in pperms:
@@ -84,8 +90,9 @@ def log_in(request):
                         is_national = check_national(user)
                         request.session['is_national'] = is_national
                         ou_vars = get_attached_units(user)
-                        # print ou_vars
+                        print('VARS', ou_vars)
                         primary_ou, reg_ovc, primary_name = 0, False, ''
+                        ou_type = ''
                         attached_ou, perms_ou = '', ''
                         if ou_vars:
                             primary_ou = ou_vars['primary_ou']
@@ -93,18 +100,25 @@ def log_in(request):
                             attached_ou = ou_vars['attached_ou']
                             perms_ou = ou_vars['perms_ou']
                             reg_ovc = ou_vars['reg_ovc']
+                            ou_type = ou_vars['org_type']
                         level, pous = get_orgs_tree(primary_ou)
-                        print level, pous
+                        print(level, pous)
                         request.session['ou_primary'] = primary_ou
                         request.session['ou_primary_name'] = primary_name
                         request.session['ou_attached'] = attached_ou
                         request.session['ou_perms'] = perms_ou
                         request.session['reg_ovc'] = reg_ovc
+                        request.session['ou_type'] = ou_type
                         request.session['user_level'] = level
+                        profile = get_profile(request, user.id)
+                        request.session['section_id'] = profile
+                        # Get holidays
+                        holiday = get_holiday(request)
+                        request.session['notice_board'] = holiday
                         next_param = request.GET
                         if 'next' in next_param:
                             next_page = next_param['next']
-                            print 'NEXT PAGE', next_page
+                            print('NEXT PAGE', next_page)
                             if '/login' not in next_page:
                                 return HttpResponseRedirect(next_page)
                         return HttpResponseRedirect(reverse(cpims_home))
@@ -120,8 +134,8 @@ def log_in(request):
             form = LoginForm()
             logout(request)
         return render(request, 'login.html', {'form': form, 'status': 200})
-    except Exception, e:
-        print 'Error login - %s' % (str(e))
+    except Exception as e:
+        print('Error login - %s' % (str(e)))
         raise e
 
 
@@ -134,7 +148,7 @@ def log_out(request):
         # Check this value before logout
         just_logged_out = request.session.get('password_change_relogin', False)
         # print 'PC', just_logged_out
-        print "User [%s] successfully logged out." % (request.user.username)
+        print("User [%s] successfully logged out." % (request.user.username))
         logout(request)
         msg = 'You have successfully logged out.'
         if 'timeout' in get_params:
@@ -155,10 +169,10 @@ def log_out(request):
             form_params = dict(urlparse.parse_qsl(form_data))
             # Save this to temp table
             save_temp_data(user_id, next_page, form_params)
-            print user_id, next_page, form_params
+            print(user_id, next_page, form_params)
         return HttpResponseRedirect(url)
-    except Exception, e:
-        print 'Error logout - %s' % (str(e))
+    except Exception as e:
+        print('Error logout - %s' % (str(e)))
         raise e
 
 
@@ -166,7 +180,7 @@ def register(request):
     """Some default page for the register page."""
     try:
         return render(request, 'register.html', {'status': 200})
-    except Exception, e:
+    except Exception as e:
         raise e
 
 
@@ -176,7 +190,7 @@ def roles_home(request):
     """Default page for Roles home."""
     try:
         return render(request, 'registry/roles_index.html')
-    except Exception, e:
+    except Exception as e:
         raise e
 
 
@@ -186,7 +200,7 @@ def roles_edit(request, user_id):
     """Create / Edit page for the roles."""
     try:
         login_id = request.user.id
-        print "Track users, Editing|Logged in", user_id, login_id
+        print("Track users, Editing|Logged in", user_id, login_id)
         if int(user_id) == login_id:
             page_info = (' - You can not manage your own Rights. '
                          'Contact your supervisor.')
@@ -385,8 +399,8 @@ def roles_edit(request, user_id):
                 group_ids.append(groups_cpims['group_STD'])
             # Check if any group is being removed
             removed_groups = list(set(mygrp) - set(group_ids))
-            print 'New groups', group_ids
-            print 'Remove groups', removed_groups
+            print('New groups', group_ids)
+            print('Remove groups', removed_groups)
             for group_id in group_ids:
                 group = Group.objects.get(id=group_id)
                 user.groups.add(group)
@@ -420,16 +434,16 @@ def roles_edit(request, user_id):
         msg = 'Person must exist to attach a Role / Permission'
         messages.add_message(request, messages.ERROR, msg)
         return render(request, 'registry/roles_index.html')
-    except Exception, e:
-        print 'error - %s' % (str(e))
+    except Exception as e:
+        print('error - %s' % (str(e)))
         raise e
 
 
-def reset_confirm(request, uidb36=None, token=None):
+def reset_confirm(request, uidb64=None, token=None):
     """Method for confirm password reset."""
     return password_reset_confirm(
         request, template_name='registration/password_reset_confirm.html',
-        uidb36=uidb36, token=token, post_reset_redirect=reverse(log_in))
+        uidb64=uidb64, token=token, post_reset_redirect=reverse(log_in))
 
 
 def reset(request):
@@ -450,7 +464,7 @@ def password_reset(
         password_reset_form=PasswordResetForm,
         token_generator=default_token_generator,
         post_reset_redirect=None,
-        from_email=None,
+        from_email='CPIMS Kenya <cpimskenya@gmail.com>',
         current_app=None,
         extra_context=None,
         html_email_template_name=None):
@@ -461,6 +475,7 @@ def password_reset(
         post_reset_redirect = resolve_url(post_reset_redirect)
     if request.method == "POST":
         form = password_reset_form(request.POST)
+        print('Form check', form.is_valid())
         if form.is_valid():
             opts = {
                 'use_https': request.is_secure(),
@@ -475,6 +490,10 @@ def password_reset(
                 opts = dict(opts, domain_override=request.get_host())
             form.save(**opts)
             return HttpResponseRedirect(post_reset_redirect)
+        else:
+            # print(form.errors)
+            messages.add_message(request, messages.ERROR, form.errors)
+            return HttpResponseRedirect('/accounts/password/reset/')
     else:
         form = password_reset_form()
     context = {

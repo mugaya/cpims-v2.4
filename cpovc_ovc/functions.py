@@ -6,7 +6,7 @@ from django.db.models import Q
 from django.db import connection
 from .models import (
     OVCRegistration, OVCHouseHold, OVCHHMembers, OVCHealth, OVCEligibility,
-    OVCFacility, OVCSchool, OVCEducation, OVCExit, OVCViralload)
+    OVCFacility, OVCSchool, OVCEducation)
 from cpovc_registry.models import (
     RegPerson, RegOrgUnit, RegPersonsTypes, OVCCheckin)
 from cpovc_main.functions import convert_date
@@ -97,10 +97,8 @@ def search_ovc(request):
         elif cid == 1:
             pids = []
             query = ("SELECT id FROM reg_person WHERE to_tsvector"
-                     "(first_name || ' ' || surname || ' '"
-                     " || COALESCE(other_names,''))"
-                     " @@ to_tsquery('english', '%s') AND is_void=False"
-                     " ORDER BY date_of_birth DESC")
+                     "(first_name || ' ' || surname || ' ' || other_names)"
+                     " @@ to_tsquery('%s') ORDER BY date_of_birth DESC")
             # " OFFSET 10 LIMIT 10")
             vals = ' & '.join(names)
             sql = query % (vals)
@@ -133,7 +131,7 @@ def search_ovc(request):
         elif cid == 5:
             query = ("SELECT id FROM reg_person WHERE to_tsvector"
                      "(first_name || ' ' || surname || ' ' || other_names)"
-                     " @@ to_tsquery('english', '%s') AND designation = 'CCGV'"
+                     " @@ to_tsquery('%s') AND designation = 'CCGV'"
                      " ORDER BY date_of_birth DESC")
             vals = ' & '.join(names)
             sql = query % (vals)
@@ -155,7 +153,7 @@ def search_ovc(request):
                 is_void=False, is_active=True)
         if not request.user.is_superuser:
             qs = qs.filter(child_cbo_id__in=ous)
-        pst, plen = 0, 1000
+        pst, plen = 0, 100
         if cbos:
             ovcs = qs.filter(child_cbo_id__in=cbos)[pst:plen]
         elif chvs:
@@ -232,11 +230,8 @@ def get_ovcdetails(ovc_id):
 def ovc_registration(request, ovc_id, edit=0):
     """Method to complete ovc registration."""
     try:
-        min_date = convert_date('01-Jan-1900')
         reg_date = request.POST.get('reg_date')
         reg_date = convert_date(reg_date)
-        if reg_date < min_date:
-            reg_date = min_date
         bcert = request.POST.get('has_bcert')
         disabled = request.POST.get('disb')
         hh_members = request.POST.getlist('hh_member')
@@ -264,37 +259,18 @@ def ovc_registration(request, ovc_id, edit=0):
         exit_reason = request.POST.get('exit_reason')
         criterias = request.POST.getlist('eligibility')
         exit_date = datetime.now().strftime("%Y-%m-%d")
-        ovc_detail = get_object_or_404(OVCRegistration, person_id=ovc_id)
-        # HIV status update only if unknown
         if edit == 0:
-            edit_hiv = True
             cbo_uid = gen_cbo_id(cbo_id, ovc_id)
             org_cid = cbo_uid if org_uid == org_uid_check else org_uid
-            ovc_detail.hiv_status = str(hiv_status)
         else:
             org_cid = org_uid
-            nhiv_status = str(hiv_status)
-            edit_hiv = False
-            if ovc_detail.hiv_status == 'HSKN':
-                edit_hiv = True
-                ovc_detail.hiv_status = nhiv_status
-            elif ovc_detail.hiv_status == 'HSTN' and nhiv_status == 'HSTP':
-                edit_hiv = True
-                ovc_detail.hiv_status = nhiv_status
-            elif ovc_detail.hiv_status == 'HSTP' and nhiv_status == 'HSTN':
-                if request.user.is_staff:
-                    edit_hiv = True
-                    ovc_detail.hiv_status = nhiv_status
-            elif ovc_detail.hiv_status == 'HSTP' and nhiv_status == 'HSTP':
-                edit_hiv = True
-                ovc_detail.hiv_status = nhiv_status
-            elif ovc_detail.hiv_status == 'XXXX' or not ovc_detail.hiv_status:
-                edit_hiv = True
-                ovc_detail.hiv_status = nhiv_status
         is_active = False if is_exited else True
+        ovc_detail = get_object_or_404(OVCRegistration, person_id=ovc_id)
         ovc_detail.registration_date = reg_date
         ovc_detail.has_bcert = has_bcert
         ovc_detail.is_disabled = is_disabled
+        if edit == 0 or not ovc_detail.hiv_status:
+            ovc_detail.hiv_status = str(hiv_status)
         ovc_detail.immunization_status = str(immmune)
         ovc_detail.org_unique_id = org_cid
         ovc_detail.caretaker_id = caretaker
@@ -314,34 +290,30 @@ def ovc_registration(request, ovc_id, edit=0):
                 person_id=ovc_id, criteria=criteria_id,
                 defaults={'person_id': ovc_id, 'criteria': criteria_id},)
         # Update Health status
-        if hiv_status == 'HSTP' and edit_hiv:
+        if hiv_status == 'HSTP':
             facility = request.POST.get('facility_id')
             art_status = request.POST.get('art_status')
             link_date = request.POST.get('link_date')
             date_linked = convert_date(link_date)
             ccc_no = request.POST.get('ccc_number')
-            if facility and art_status and date_linked and ccc_no:
-                health, created = OVCHealth.objects.update_or_create(
-                    person_id=ovc_id,
-                    defaults={'person_id': ovc_id,
-                              'facility_id': facility,
-                              'art_status': art_status,
-                              'date_linked': date_linked, 'ccc_number': ccc_no,
-                              'is_void': False},)
+            health, created = OVCHealth.objects.update_or_create(
+                person_id=ovc_id,
+                defaults={'person_id': ovc_id,
+                          'facility_id': facility, 'art_status': art_status,
+                          'date_linked': date_linked, 'ccc_number': ccc_no,
+                          'is_void': False},)
         # Update School details
         if school_level != 'SLNS':
-            school_id = request.POST.get('school_id')
             school_class = request.POST.get('school_class')
+            school_id = request.POST.get('school_id')
             school_adm = request.POST.get('admission_type')
-            if school_id and school_class and school_adm:
-                health, created = OVCEducation.objects.update_or_create(
-                    person_id=ovc_id, school_class=school_class,
-                    defaults={'person_id': ovc_id,
-                              'school_id': school_id,
-                              'school_level': school_level,
-                              'school_class': school_class,
-                              'admission_type': school_adm,
-                              'is_void': False},)
+            health, created = OVCEducation.objects.update_or_create(
+                person_id=ovc_id, school_class=school_class,
+                defaults={'person_id': ovc_id,
+                          'school_id': school_id, 'school_level': school_level,
+                          'school_class': school_class,
+                          'admission_type': school_adm,
+                          'is_void': False},)
         cgs = extract_post_params(request, naming='cg_')
         hhrs = extract_post_params(request, naming='hhr_')
         # Alive status, HIV status and Death cause for Guardian
@@ -414,8 +386,7 @@ def ovc_registration(request, ovc_id, edit=0):
                               'member_alive': hh_alive,
                               'date_linked': todate, 'hiv_status': hh_hiv},)
     except Exception, e:
-        print 'Error updating OVCID:%s - %s' % (ovc_id, str(e))
-        pass
+        raise e
     else:
         pass
 
@@ -513,70 +484,3 @@ def manage_checkins(request, gid=0):
         return msg, 0
     else:
         return msg, chs
-
-
-def ovc_management(request):
-    try:
-        action_id = int(request.POST.get('action'))
-        if action_id == 2:
-            perform_exit(request)
-        elif action_id == 3:
-            save_viral_load(request)
-    except Exception as e:
-        raise e
-    else:
-        pass
-
-
-def perform_exit(request):
-    try:
-        ovcid = request.POST.get('ovc_id')
-        exit_date = convert_date(request.POST.get('exit_date'))
-        exit_reason = request.POST.get('exit_reason')
-        exit_org_name = request.POST.get('exit_org_name')
-        #
-        ovc_details = OVCRegistration.objects.get(person_id=ovcid)
-        ovc_details.exit_date = exit_date
-        ovc_details.exit_reason = exit_reason
-        if exit_org_name:
-            # ovc_details.exit_org_name = exit_org_name
-            org, created = OVCExit.objects.update_or_create(
-                person_id=ovcid,
-                defaults={'person_id': ovcid, 'org_unit_name': exit_org_name},)
-        ovc_details.is_active = False
-        ovc_details.save(
-            update_fields=["exit_date", "exit_reason", "is_active"])
-    except Exception as e:
-        print 'error exiting - %s' % (str(e))
-        raise e
-    else:
-        pass
-
-
-def get_exit_org(ovc_id):
-    """Method to get exit organization."""
-    try:
-        org = OVCExit.objects.get(is_void=False, person_id=ovc_id)
-    except Exception as e:
-        print 'No org details - %s' % (str(e))
-        return ''
-    else:
-        return org.org_unit_name
-
-
-def save_viral_load(request):
-    try:
-        ovcid = request.POST.get('ovc_id')
-        viral_date = convert_date(request.POST.get('viral_date'))
-        ldl = request.POST.get('ldl')
-        viral_value = request.POST.get('viral_value')
-        viral_load = None if ldl == 'true' else viral_value
-        # OVC Viral load
-        org, created = OVCViralload.objects.update_or_create(
-            person_id=ovcid, viral_date=viral_date,
-            defaults={'person_id': ovcid, 'viral_load': viral_load},)
-    except Exception as e:
-        print 'error exiting - %s' % (str(e))
-        raise e
-    else:
-        pass

@@ -9,7 +9,7 @@
 {% block style_code %}
 <link href="{% static 'css/bootstrap-table.min.css' %}" rel="stylesheet" />
 <style type="text/css">
-.fontcss {
+.fontcssw {
   color: #0057e7;
 }
 </style>
@@ -44,7 +44,7 @@
             <div class="modal-header">
                 <button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button><h4 class="modal-title">
                 <div id="closure-warning-dialog-header">
-                    <p>Case History &nbsp;&nbsp;<i class="fa fa-info-circle"></i> </p>      
+                    <p>Case History &nbsp;&nbsp; - Previous cases affecting the child ever Reported. </p>      
                 </div>
                 </h4>
             </div>
@@ -64,7 +64,6 @@
 </div>
 <!-- end caserecord-details-dialog -->
 
-<div class="row">
     <div class="row">
         <div class="col-md-12">
             <div class="panel panel-inverse">
@@ -91,11 +90,7 @@
                             <i class="fa fa-plus"></i>&nbsp;&nbsp;<b>Register New Child</b>
                         </a>
                     </form>        
-                </div>
-            </div>
-        </div>
-    </div>
-
+                
     {% if resultsets %}
     <div class="panel-body">
         <div class="table-responsive">
@@ -115,18 +110,16 @@
                 <tbody>
                     {% for result in resultsets %}
                     <tr>                                        
-                        <td>{{ result.id }}</a></td>
+                        <td>{{ result.id }}</td>
                         <td>{{ result.first_name }}</td>
                         <td>{{ result.surname }}</td>
                         <td>{{ result.sex_id|gen_value:vals }}</td>
                         <td>No OrgUnit Info</td>
                         <td>{{ result.ovc_persongeos }}</td>
                         <td>
-                            <h6>
-                            <button class="btn  btn-sm btn-link m-r-5" onClick="open_form(2, {{result.id}})" >
+                            <button class="btn  btn-sm btn-primary m-r-5" onClick="open_form(2, {{result.id}})" >
                                 <b>{{ result.case_count }}</b>                         
                             </button>
-                            </h6>
                         </td>
                      
                         <td>                                  
@@ -144,6 +137,10 @@
         <div align="center" class="norecords">No records found.</div>
     {% endif %}
 </div>
+</div>
+            </div>
+        </div>
+
 
 {% endblock %}
 
@@ -181,7 +178,7 @@ function open_form(x, id)
                     data: values,
                     success: function(result)
                     {
-                        var msg = ''
+                        var msg = '<table class="table">'
                         
                         $.each(result, function(i, val) {
                             var case_serial = val.case_serial;
@@ -197,18 +194,23 @@ function open_form(x, id)
                                 // get orgunit_contacts
                                 $.each(orgunit_contacts, function(i, orgunit_contact)
                                 { 
-                                    msg_contacts = msg_contacts + '<b><span>' + orgunit_contact.contact_detail_type_id+ ' : </span></b>' + orgunit_contact.contact_detail + '<br>'
+                                    msg_contacts += '<tr><td><b>' + orgunit_contact.contact_detail_type_id+ '</b></td><td>' + orgunit_contact.contact_detail + '</td></tr>'
                                 });
 
-                                msg = msg + '<b>' + '<span class="badge badge-default">' + (i+1) + '</span><br><br><span>Serial Number : </b>' + case_serial + '<br><b>OrgUnit Reported : </b>' + report_orgunit + '</span><br>' + msg_contacts + '<br><br>'
+                                msg += '<tr><td colspan="2"><span class="badge badge-primary">Protection CASE # ' + (i+1) + '</span></td></tr>';
+                                 msg += '<tr><td><b>Serial Number</b></td><td>' + case_serial + '</td></tr>';
+                                msg += '<tr><td><b>Org Unit Case Reported</b></td><td>' + report_orgunit + '</td></tr>';
+                                msg += '<tr><td colspan="2"><h4>Contact details</h4></td></tr>';
+                                msg += msg_contacts;
 
                             }
                             else
                             { 
-                                msg = 'No previous case(s).'
+                                msg += '<tr><td></td><td></td><td>No previous case(s).</td></tr>'
                             }
                             
                         });
+                        msg += '</table>';
                         $('#div_casehistory p').html(msg)                      
                     },
                     error: function(xhr, status, error)

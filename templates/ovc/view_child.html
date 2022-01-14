@@ -155,18 +155,12 @@ Registration details | {{ child.first_name }} {{ child.surname }} | {{ child.age
                         <tr>
                             <td class="field">Immunization</td>
                             <td>{{ creg.immunization_status|gen_value:vals }}</td>
-                            <td class="field">School Level</td>
-                            <td>{{ creg.school_level|gen_value:vals }}</td>
                             <td class="field">HIV Status</td>
                             <td>{{ creg.hiv_status|gen_value:vals }}</td>
-                            <td class="field">Suppressed</td>
-                            <td>
-                                {% if creg.hiv_status == 'HSTP' %}
-                                   {{ suppression }}
-                                {% else %}
-                                    N/A
-                                {% endif %}
-                            </td>
+                            <td class="field">School Level</td>
+                            <td>{{ creg.school_level|gen_value:vals }}</td>
+                            <td></td>
+                            <td></td>
                         </tr>
                         {% if creg.hiv_status == 'HSTP' %}
                         <tr>
@@ -292,25 +286,6 @@ Registration details | {{ child.first_name }} {{ child.surname }} | {{ child.age
                         <a href="{% url 'hh_manage' hhid=hhold.house_hold.id %}">
                         <button type="button" class="btn btn-primary"> <i class="fa fa-users"></i> Manage HH </button>
                         </a>
-
-                            <a href="{% url 'new_cpara' id=creg.person_id %}">
-                        <button type="button" class="btn btn-primary"> <i class="fa fa-users"></i> CPARA</button>
-                        </a>
-                            <a href="{% url 'new_caseplan' id=creg.person_id %}">
-                        <button type="button" class="btn btn-primary"> <i class="fa fa-folder-open"></i> Case Plan Template</button>
-                        </a>
-                            <a href="{% url 'new_caseplan_monitoring' id=creg.person_id %}">
-                        <button type="button" class="btn btn-primary"> <i class="fa fa-check-circle"></i> CPARA Monitoring</button>
-                        </a>
-
-			  <a href="{% url 'new_wellbeing' id=creg.person_id%}">
-                        <button type="button" class="btn btn-primary"> <i class="fa fa-users"></i> Wellbeing </button>
-                        </a>
-
-                        <a href="{% url 'new_wellbeingadolescent' id=creg.person_id%}">
-                        <button type="button" class="btn btn-primary"> <i class="fa fa-users"></i> Wellbeing Adolescent</button>
-                        </a>
-			
                         {% endif %}
                     <p></p>
                     </center>

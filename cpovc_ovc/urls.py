@@ -12,6 +12,5 @@ urlpatterns = patterns(
         'ovc_edit', name='ovc_edit'),
     url(r'^ovc/view/(?P<id>\d+)/$',
         'ovc_view', name='ovc_view'),
-    url(r'^ovc/manage/$', 'ovc_manage', name='ovc_manage'),
     url(r'^hh/view/(?P<hhid>[0-9A-Za-z_\-]+)/$',
         'hh_manage', name='hh_manage'),)

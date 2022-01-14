@@ -192,16 +192,12 @@ urlpatterns = patterns(
         'form1a_events', name='form1a_events'),
     url(r'^form1a/save/$',
         'save_form1a', name='save_form1a'),
-    url(r'^form1a/update/$',
-        'update_form1a', name='update_form1a'),
-    url(r'^form1a/edit/(?P<id>\d+)/(?P<btn_event_type>\w+)/(?P<btn_event_pk>.+)/$',
+    url(r'^form1a/edit/$',
         'edit_form1a', name='edit_form1a'),
     url(r'^form1a/view/$',
         'view_form1a', name='view_form1a'),
-    url(r'^form1a/delete/(?P<id>\d+)/(?P<btn_event_type>\w+)/(?P<btn_event_pk>.+)/$',
+    url(r'^form1a/delete/$',
         'delete_form1a', name='delete_form1a'),
-    url(r'^form1a/delete_previous_event_entry/(?P<btn_event_type>\w+)/(?P<entry_id>.+)/$',
-            'delete_previous_event_entry', name='delete_previous_event_entry'),
     url(r'^form1a/manage/$',
         'manage_form1a_events', name='manage_form1a_events'),
     # OVC Care - Form1B
@@ -217,29 +213,9 @@ urlpatterns = patterns(
     url(r'^hhva/delete/(?P<id>\w+)/$',
         'delete_hhva', name='delete_hhva'),
     # Presidential Bursary
-    url(r'^bursary/list/(?P<id>\d+)/$',
-        'list_bursary', name='list_bursary'),
-    url(r'^bursary/view/(?P<id>[0-9A-Za-z_\-{32}\Z]+)/$',
-        'view_bursary', name='view_bursary'),
     url(r'^bursary/new/(?P<id>\d+)/$',
         'new_bursary', name='new_bursary'),
-    url(r'^bursary/edit/(?P<id>[0-9A-Za-z_\-{32}\Z]+)/$',
-        'edit_bursary', name='edit_bursary'),
-    url(r'^bursary/form/(?P<id>[0-9A-Za-z_\-{32}\Z]+)/$',
-        'form_bursary', name='form_bursary'),
-    # OVC Care - CPARA Form
-    url(r'^cpara/new/(?P<id>\d+)/$',
-        'new_cpara', name='new_cpara'),
-    # OVC Care - Case Plan Template
-    url(r'^caseplan/new/(?P<id>\d+)/$',
-        'case_plan_template', name='new_caseplan'),
-    url(r'^caseplan-monitoring/new/(?P<id>\d+)/$', 'new_case_plan_monitoring', name='new_caseplan_monitoring'),
-
-    #wellbeing Adult and Child
-    url(r'^wellbeing/new/(?P<id>\d+)/$',
-        'new_wellbeing', name='new_wellbeing'),
-    #wellbeing Adolescent
-    url(r'^wellbeingadolescent/new/(?P<id>\d+)/$',
-        'new_wellbeingadolescent', name='new_wellbeingadolescent')
+    url(r'^case/(?P<case_id>[0-9A-Za-z_\-{32}\Z]+)/$',
+        'case_info', name='case_info'),
 
 )

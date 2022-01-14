@@ -3,7 +3,7 @@ import csv
 import time
 from django.contrib import admin
 from django.http import HttpResponse
-from .models import SetupGeography, SetupList
+from .models import SetupGeography, SetupList, ListAnswers, SetupLocation
 
 
 def dump_to_csv(modeladmin, request, qs):
@@ -21,7 +21,8 @@ def dump_to_csv(modeladmin, request, qs):
 
     headers = []
     for field in model._meta.fields:
-        headers.append(field.name)
+        if field.name != 'password':
+            headers.append(field.name)
     writer.writerow(headers)
 
     for obj in qs:
@@ -35,6 +36,8 @@ def dump_to_csv(modeladmin, request, qs):
             row.append(val)
         writer.writerow(row)
     return response
+
+
 dump_to_csv.short_description = u"Dump to CSV"
 
 
@@ -73,6 +76,8 @@ def export_xls(modeladmin, request, queryset):
             ws.write(row_num, col_num, row[col_num], font_style)
     wb.save(response)
     return response
+
+
 export_xls.short_description = u"Export XLS"
 
 
@@ -118,6 +123,7 @@ def export_xlsx(modeladmin, request, queryset):
     wb.save(response)
     return response
 
+
 export_xlsx.short_description = u"Export XLSX"
 
 
@@ -130,6 +136,7 @@ class GeoModelAdmin(admin.ModelAdmin):
     readonly_fields = ['area_id']
     list_filter = ['area_type_id', 'parent_area_id']
     actions = [dump_to_csv, export_xls, export_xlsx]
+
 
 admin.site.register(SetupGeography, GeoModelAdmin)
 
@@ -147,3 +154,30 @@ class GeneralModelAdmin(admin.ModelAdmin):
 
 
 admin.site.register(SetupList, GeneralModelAdmin)
+
+
+class ListAnswersAdmin(admin.ModelAdmin):
+    """Admin back end for Lookup lists management."""
+
+    search_fields = ['answer_set_id', 'answer']
+    list_display = ['id', 'answer_set_id', 'answer_code', 'answer',
+                    'the_order', 'is_void']
+    list_filter = ['answer_set_id']
+    actions = [dump_to_csv]
+
+
+admin.site.register(ListAnswers, ListAnswersAdmin)
+
+
+class GeoLocationAdmin(admin.ModelAdmin):
+    """Admin back end for Geo data management."""
+
+    search_fields = ['area_id', 'area_name']
+    list_display = ['area_id', 'area_name', 'area_type_id', 'area_code',
+                    'parent_area_id']
+    readonly_fields = ['area_id']
+    list_filter = ['area_type_id']
+    actions = [dump_to_csv, export_xls, export_xlsx]
+
+
+admin.site.register(SetupLocation, GeoLocationAdmin)

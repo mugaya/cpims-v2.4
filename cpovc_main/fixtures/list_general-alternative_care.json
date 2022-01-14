@@ -1,0 +1,130 @@
+[
+    {
+        "pk": 31101,
+        "model": "cpovc_main.SetupList",
+        "fields": {
+            "the_order": 1,
+            "user_configurable": "False",
+            "field_name": "disability_type_id",
+            "item_id": "DIPH",
+            "is_void": "False",
+            "item_sub_category": "",
+            "item_description_short": "Physical",
+            "sms_keyword": "False",
+            "item_description": "Physical",
+            "item_category": "Disability type"
+        }
+    },
+    {
+        "pk": 31102,
+        "model": "cpovc_main.SetupList",
+        "fields": {
+            "the_order": 2,
+            "user_configurable": "False",
+            "field_name": "disability_type_id",
+            "item_id": "DIVI",
+            "is_void": "False",
+            "item_sub_category": "",
+            "item_description_short": "Visual Impairment",
+            "sms_keyword": "False",
+            "item_description": "Visual",
+            "item_category": "Disability type"
+        }
+    },
+    {
+        "pk": 31103,
+        "model": "cpovc_main.SetupList",
+        "fields": {
+            "the_order": 3,
+            "user_configurable": "False",
+            "field_name": "disability_type_id",
+            "item_id": "DIHI",
+            "is_void": "False",
+            "item_sub_category": "",
+            "item_description_short": "Hearing Impairment",
+            "sms_keyword": "False",
+            "item_description": "Hearing Impairment",
+            "item_category": "Disability type"
+        }
+    },
+    {
+        "pk": 31104,
+        "model": "cpovc_main.SetupList",
+        "fields": {
+            "the_order": 4,
+            "user_configurable": "False",
+            "field_name": "disability_type_id",
+            "item_id": "DIAL",
+            "is_void": "False",
+            "item_sub_category": "",
+            "item_description_short": "Albinism",
+            "sms_keyword": "False",
+            "item_description": "Albinism",
+            "item_category": "Disability type"
+        }
+    },
+    {
+        "pk": 31105,
+        "model": "cpovc_main.SetupList",
+        "fields": {
+            "the_order": 5,
+            "user_configurable": "False",
+            "field_name": "disability_type_id",
+            "item_id": "DIMT",
+            "is_void": "False",
+            "item_sub_category": "",
+            "item_description_short": "Mental",
+            "sms_keyword": "False",
+            "item_description": "Mental",
+            "item_category": "Disability type"
+        }
+    },
+    {
+        "pk": 31106,
+        "model": "cpovc_main.SetupList",
+        "fields": {
+            "the_order": 1,
+            "user_configurable": "False",
+            "field_name": "severity_level_id",
+            "item_id": "DSSE",
+            "is_void": "False",
+            "item_sub_category": "",
+            "item_description_short": "Severe",
+            "sms_keyword": "False",
+            "item_description": "Severe",
+            "item_category": "Severity"
+        }
+    },
+    {
+        "pk": 31107,
+        "model": "cpovc_main.SetupList",
+        "fields": {
+            "the_order": 2,
+            "user_configurable": "False",
+            "field_name": "severity_level_id",
+            "item_id": "DSMO",
+            "is_void": "False",
+            "item_sub_category": "",
+            "item_description_short": "Moderate",
+            "sms_keyword": "False",
+            "item_description": "Moderate",
+            "item_category": "Severity"
+        }
+    },
+    {
+        "pk": 31108,
+        "model": "cpovc_main.SetupList",
+        "fields": {
+            "the_order": 3,
+            "user_configurable": "False",
+            "field_name": "severity_level_id",
+            "item_id": "DSMI",
+            "is_void": "False",
+            "item_sub_category": "",
+            "item_description_short": "Mild",
+            "sms_keyword": "False",
+            "item_description": "Mild",
+            "item_category": "Severity"
+        }
+    }
+]

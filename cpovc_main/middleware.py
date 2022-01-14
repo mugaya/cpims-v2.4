@@ -40,16 +40,13 @@ class SqlPrintingMiddleware(object):
             width = terminal_width()
             total_time = 0.0
             for query in connection.queries:
-                try:
-                    nice_sql = query['sql'].replace('"', '').replace(',', ', ')
-                    sql = "[%s] %s" % (query['time'], nice_sql)
-                    total_time = total_time + float(query['time'])
-                    while len(sql) > width - indent:
-                        print "%s%s" % (" " * indent, sql[:width - indent])
-                        sql = sql[width - indent:]
-                    print "%s%s\n" % (" " * indent, sql)
-                except Exception, e:
-                    print e
+                nice_sql = query['sql'].replace('"', '').replace(',', ', ')
+                sql = "[%s] %s" % (query['time'], nice_sql)
+                total_time = total_time + float(query['time'])
+                while len(sql) > width - indent:
+                    print "%s%s" % (" " * indent, sql[:width - indent])
+                    sql = sql[width - indent:]
+                print "%s%s\n" % (" " * indent, sql)
             replace_tuple = (" " * indent, str(total_time))
             print "%s[TOTAL PAGE LOAD TIME: %s seconds]" % replace_tuple
         return response

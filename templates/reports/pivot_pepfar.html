@@ -113,15 +113,13 @@
                         <a href="#" data-toggle="tooltip" title="Select report type."><i class="fa fa-info-circle fa-lg"></i></a>
                     </div>      
                     <div class="panel-body panel-form">
-                        <div style="margin: 10px;">
+                        <div class="form-group">
                             <label class="control-label col-md-4 col-sm-4"></label>
                             <div class="col-md-6 col-sm-6">
                                 <button type="submit" class="btn btn-sm btn-primary m-r-5"><i class="fa fa-check-square-o"></i> View </button>
                                 <button type="button" id="map-print" class="btn btn-sm btn-danger m-r-5" onclick="printChart()"><i class="fa fa-print"></i> Print Report</button>
                                 <button type="button" id="rpt-download" class="btn btn-sm btn-primary m-r-5"><i class="fa fa-download"></i> Download</button>
-                                <span  id="other_reports"></span>
                                 <input type="hidden" name="rpt_id" id="rpt_id">
-                                <input type="hidden" name="rpt_ovc_id" id="rpt_ovc_id" value="52">
                             </div>
                         </div>
                     </div>
@@ -188,32 +186,28 @@ jQuery(document).ready(function() {
                 var numberFormat = $.pivotUtilities.numberFormat;
                 var intFormat = numberFormat({digitsAfterDecimal: 0});
                 $("#rpt_id").val(file_name);
-                if (status == 0){
-                    $('#map-print, #rpt-download').show();
 
-                    var renderers = $.extend(
-                        $.pivotUtilities.renderers,
-                        $.pivotUtilities.d3_renderers
-                        );
-                    $("#report_html").pivotUI(data, {
-                        //renderers: renderers,
-                        cols: ["AGERANGE", "GENDER"],
-                        rows: ["DOMAIN"],
-                        aggregators: {
-                            "Number of OVC":  function() { 
-                                return tpl.count()()
-                            },
-                            "Sum of OVC":  function() { 
-                                return tpl.sum(intFormat)(["OVCCOUNT"]) 
-                            }
+                var renderers = $.extend(
+                    $.pivotUtilities.renderers,
+                    $.pivotUtilities.d3_renderers
+                    );
+                $("#report_html").pivotUI(data, {
+                    //renderers: renderers,
+                    cols: ["AGERANGE", "GENDER"],
+                    rows: ["DOMAIN"],
+                    aggregators: {
+                        "Number of OVC":  function() { 
+                            return tpl.count()()
                         },
-                        rendererName: "Table"
-                        }, true);
-                    //
-                    $('#report_results').html("");
-                }else{
-                    $('#report_results').html(message);
-                } 
+                        "Sum of OVC":  function() { 
+                            return tpl.sum(intFormat)(["OVCCOUNT"]) 
+                        }
+                    },
+                    rendererName: "Table"
+                    }, true);
+                //
+                $('#report_results').html("");
+                $('#map-print, #rpt-download').show();
  
             },
             // handle a non-successful response

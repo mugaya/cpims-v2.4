@@ -1,12 +1,15 @@
 """Reports functions."""
+import os
 import re
 import csv
 import uuid
+import base64
 import time
 import string
 import calendar
 import collections
 import pandas
+import memcache
 from django.db import connection
 from django.db import connections
 from datetime import datetime, timedelta, date
@@ -14,13 +17,15 @@ from calendar import monthrange, month_name
 from collections import OrderedDict
 from openpyxl import Workbook
 from reportlab.pdfgen import canvas
-from reportlab.lib.enums import TA_JUSTIFY, TA_CENTER
+from reportlab.lib.enums import TA_JUSTIFY, TA_RIGHT, TA_CENTER, TA_LEFT
 from reportlab.platypus import (
-    SimpleDocTemplate, Paragraph, Spacer, Image, Frame, Table)
+    SimpleDocTemplate, Paragraph, Spacer, Image, Frame,
+    Table, TableStyle)
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch, cm, mm
 from reportlab.pdfbase.pdfmetrics import stringWidth
-from reportlab.lib.pagesizes import A4, letter
+from reportlab.lib.pagesizes import A4, letter, landscape
+from reportlab.lib.utils import ImageReader
 # Security
 from reportlab.graphics.barcode import qr
 from reportlab.graphics.shapes import Drawing
@@ -45,14 +50,19 @@ from cpovc_registry.models import (
 
 from cpovc_forms.models import (
     OVCCaseCategory, OVCCaseGeo, OVCCaseEventServices,
-    OVCPlacement, OVCAdverseEventsOtherFollowUp,
-    OVCDischargeFollowUp, OVCCaseRecord, OVCAdverseEventsFollowUp)
+    OVCPlacement, OVCAdverseEventsOtherFollowUp, OVCCaseEventClosure,
+    OVCDischargeFollowUp, OVCCaseRecord, OVCAdverseEventsFollowUp,
+    OVCCaseEvents)
 from cpovc_auth.models import AppUser
 
 from django.conf import settings
 from django.db.models import Count
 from .queries import QUERIES, REPORTS
-from .parameters import ORPTS, RPTS
+from .parameters import ORPTS, RPTS, GRPTS, ADHC
+from .security import BarCode
+
+from reportlab.lib import colors
+
 
 MEDIA_ROOT = settings.MEDIA_ROOT
 STATIC_ROOT = settings.STATICFILES_DIRS[0]
@@ -66,6 +76,7 @@ class Canvas(canvas.Canvas):
         """Constructor for my pagination."""
         canvas.Canvas.__init__(self, *args, **kwargs)
         self._saved_page_states = []
+        self.page = ''
 
     def showPage(self):
         """Get the pages first."""
@@ -83,9 +94,14 @@ class Canvas(canvas.Canvas):
 
     def draw_page_number(self, page_count):
         """Draw the final page."""
-        self.setFont("Times-Roman", 7)
+        self.page = "Page %d of %d" % (self._pageNumber, page_count)
+        self.setFont("Helvetica", 8)
+        self.drawString(0.5 * inch, 0.5 * inch, self.page)
+        # self.drawRightString(70, 20, self.page)
+        '''
         self.drawRightString(20 * cm, 1 * cm,
                              "Page %d of %d" % (self._pageNumber, page_count))
+        '''
 
 
 def get_report_body(params, report='DSCE'):
@@ -120,7 +136,7 @@ def get_report_body(params, report='DSCE'):
             else:
                 fields[field_vals[0]] = field_txt
         return fields
-    except Exception, e:
+    except Exception as e:
         raise e
 
 
@@ -128,8 +144,8 @@ def get_case_details(field_names):
     """Method to get only case categories from list general."""
     try:
         case_categories = get_general_list(field_names)
-    except Exception, e:
-        print "Error getting case categories - %s" % (str(e))
+    except Exception as e:
+        print("Error getting case categories - %s" % (str(e)))
         pass
     else:
         return case_categories
@@ -178,7 +194,7 @@ def case_load_header(report_type=1, header=False, params=[]):
                 html += "<td>%s</td>" % (gender)
         html += "</tr>"
         return html
-    except Exception, e:
+    except Exception as e:
         raise e
 
 
@@ -273,12 +289,11 @@ def simple_documents(params, document_name='CPIMS', report_name='letter'):
         story.append(Spacer(1, 24))
         vals = get_report_body(params, report_name)
         ptext = '%s' % (vals)
-        print 'BODY', ptext
         story.append(Paragraph(ptext, styles["Justify"]))
         story.append(Spacer(1, 12))
         doc.build(story, onFirstPage=draw_page, onLaterPages=draw_page,
                   canvasmaker=Canvas)
-    except Exception, e:
+    except Exception as e:
         raise e
 
 
@@ -482,7 +497,7 @@ def simple_document(params, document_name='CPIMS', report_name='letter'):
             canvas.line(40, height, a4width - 40, height)
 
         canvas.save()
-    except Exception, e:
+    except Exception as e:
         print 'error - %s' % (str(e))
         pass
 
@@ -530,7 +545,7 @@ def word_document(params, name):
         document.add_page_break()
         document.save('demo.docx')
 
-    except Exception, e:
+    except Exception as e:
         raise e
 
 
@@ -542,10 +557,31 @@ def draw_page(canvas, doc):
     canvas.setSubject(title)
     canvas.setAuthor(author)
     canvas.setCreator(author)
-
-    footer = []
+    # footer = []
     # Put some data into the footer
-    Frame(2 * cm, 0, 17 * cm, 4 * cm).addFromList(footer, canvas)
+    # Frame(2 * cm, 0, 17 * cm, 4 * cm).addFromList(footer, canvas)
+    canvas.saveState()
+
+    # Header
+    canvas.drawString(0.5 * inch, 8 * inch, doc.fund_name)
+    canvas.drawRightString(10.5 * inch, 8 * inch, doc.report_info)
+
+    # Footers
+    canvas.setFont("Helvetica", 8)
+    canvas.drawString(0.5 * inch, 0.5 * inch, '')
+    canvas.drawRightString(11.2 * inch, 0.5 * inch, 'Source : %s' % (doc.source))
+    # canvas.drawRightString(10.5 * inch, 0.5 * inch, 'Page %d' % (doc.page))
+
+    canvas.setFont("Helvetica", 240)
+    # self.setFont("Helvetica", 8)
+    canvas.setStrokeGray(0.90)
+    canvas.setFillGray(0.90)
+    # canvas.rotate(45)
+    # canvas.drawCentredString(5.5 * inch, 3.25 * inch, doc.watermark)
+    # logo = ImageReader('https://www.google.com/images/srpr/logo11w.png')
+    # canvas.drawImage(logo, 10, 10, mask='auto')
+
+    canvas.restoreState()
 
 
 def get_sub_county_info(sub_county_ids, a_type='GDIS', icounty=None):
@@ -574,7 +610,7 @@ def get_sub_county_info(sub_county_ids, a_type='GDIS', icounty=None):
                     area_ids[area_id] = {'county': parent_area_id,
                                          'sub_county_id': area_id,
                                          'sub_county': area_name}
-    except Exception, e:
+    except Exception as e:
         print 'error getting sub-county ids - %s' % (str(e))
         return []
     else:
@@ -592,7 +628,7 @@ def get_geo_locations(org_id, a_type='GDIS'):
             area_name = area.area.area_name
             if area_type == a_type:
                 ext_ids.append(area_name)
-    except Exception, e:
+    except Exception as e:
         raise e
     else:
         return ext_ids
@@ -606,7 +642,7 @@ def get_period(report_type='M', month='', year='', period='F'):
     period should be a calculated month range given an end date.
     """
     try:
-        print 'PEPFAR', report_type, period
+        print 'TYPE', report_type, 'MON', month, 'YR', year, 'PERIOD', period,
         days = 30
         reports_qs = {'Q1': 9, 'Q2': 12, 'Q3': 3, 'Q4': 6}
         other_yr = ['Q3', 'Q4', 'Y']
@@ -676,8 +712,9 @@ def get_period(report_type='M', month='', year='', period='F'):
         params['years'] = year_name
         params['sheet'] = sheet_name
         params['label'] = report_label
+        print('BBBBBBBBBBBBBBBBBBBBBBB', params)
         return params
-    except Exception, e:
+    except Exception as e:
         print 'error getting date - %s' % (str(e))
         raise e
 
@@ -760,7 +797,7 @@ def data_from_results(datas, gid='D', intv=False):
                     val['CHILD'][age_set] = dt
         return val
 
-    except Exception, e:
+    except Exception as e:
         raise e
 
 
@@ -782,7 +819,7 @@ def filter_org_unit(params, sub_county_case_ids):
         if org_unit_ids:
             sub_county_case_ids = sub_county_case_ids.filter(
                 report_orgunit_id__in=org_unit_ids)
-    except Exception, e:
+    except Exception as e:
         print "could not filter by OU - %s" % (str(e))
         return sub_county_case_ids
     else:
@@ -798,6 +835,7 @@ def get_data(params, report='CASE_LOAD'):
     try:
         data = []
         print 'Case Load params', params
+        print('\n\n')
         cl_queryset = OVCCaseCategory.objects.all()
         cl_queryset = cl_queryset.filter(is_void=False).exclude(
             case_id__is_void=True)
@@ -843,7 +881,7 @@ def get_data(params, report='CASE_LOAD'):
         raw_vals = {'data': raw_data, 'pending': raw_pending,
                     'interventions': raw_interven, 'itv': intvs}
         return raw_vals
-    except Exception, e:
+    except Exception as e:
         print 'Get data error - %s' % (str(e))
         raise e
 
@@ -852,7 +890,7 @@ def data_category(data):
     """Method to show my category."""
     try:
         pass
-    except Exception, e:
+    except Exception as e:
         raise e
 
 
@@ -865,7 +903,7 @@ def filter_by_date(params, queryset, field='date_of_event'):
             print "Filter by dates", str(start_date), str(end_date)
             kwargs = {'{0}__range'.format(field): (start_date, end_date)}
             queryset = queryset.filter(**kwargs)
-    except Exception, e:
+    except Exception as e:
         print "Error applying date filter - %s" % (str(e))
         return queryset
     else:
@@ -914,7 +952,7 @@ def get_pending(params):
             item['cid'] = pen.case_id_id
             data.append(item)
         return data
-    except Exception, e:
+    except Exception as e:
         print 'Get pending error - %s' % (str(e))
         raise e
 
@@ -927,7 +965,7 @@ def get_case_ids(params):
         period_qs = period_qs.values_list('case_id', flat=True)
         print "case filters for ids by date"
         return period_qs
-    except Exception, e:
+    except Exception as e:
         print "Error getting case -%s" % (str(e))
         return []
 
@@ -975,7 +1013,7 @@ def get_intervention(params, pending=False):
             item['cid'] = res.case_category.case_id_id
             data.append(item)
         return data
-    except Exception, e:
+    except Exception as e:
         print 'Get intervention error - %s' % (str(e))
         raise e
 
@@ -1045,7 +1083,7 @@ def child_data(data):
             c_data = ext_ids[ffv] if ffv in ext_ids else 'N/A'
             data[ffv_key] = c_data
         return data
-    except Exception, e:
+    except Exception as e:
         print 'Error getting child - %s' % (str(e))
         data['siblings'] = {}
         return data
@@ -1112,7 +1150,7 @@ def get_raw_data(params, data_type=1):
                 val_name = vals[val]
                 val_data = diss_vals[val] if val in diss_vals else 0
                 total_h += val_data
-                dt += '<tr><td>%s</td><td>%s</td>' % (cnt, val_name)
+                dt += '<tr><td>%s</td><td>%s</td>' % (str(cnt) + '.', val_name)
                 if val in idata:
                     dt += '%s' % (idata[val])
                 else:
@@ -1123,12 +1161,12 @@ def get_raw_data(params, data_type=1):
                 else:
                     rd = blanks
                 if rdata:
-                    raw_data.append([cnt, val_name] + rd)
+                    raw_data.append([str(cnt) + '.', val_name] + rd)
                 cnt += 1
             for oval in otherd:
                 oval_name = otherd[oval]
                 sval = other_items[oval] if oval in other_items else oval
-                dt += '<tr><td>%s</td><td>%s</td>' % (cnt, oval_name)
+                dt += '<tr><td>%s</td><td>%s</td>' % (str(cnt) + '.', oval_name)
                 if sval in idata:
                     dt += '%s' % (idata[sval])
                 else:
@@ -1139,7 +1177,7 @@ def get_raw_data(params, data_type=1):
                 else:
                     rd = blanks
                 if rdata:
-                    raw_data.append([cnt, oval_name] + rd)
+                    raw_data.append([str(cnt) + '.', oval_name] + rd)
                 cnt += 1
             if rdata:
                 del itotals[1]
@@ -1181,11 +1219,11 @@ def get_raw_data(params, data_type=1):
             rtitle = 'KNBS REPORT %s %s' % (
                 params['month'], params['year'])
             # Just add title whether there is data or not
-            knb_head = ['', rtitle.upper(), ''] + [''] * 13
-            knb_title = ['', 'Case Category', ''] + tblanks + ['Total']
+            knb_head = ['', rtitle.upper()] + [''] * 13
+            knb_title = ['', 'Case Category'] + tblanks + ['Total']
             if data:
                 raw_data.append(knb_head)
-                raw_data.append(['', '', ''] + csvh)
+                raw_data.append(['', ''] + csvh)
                 raw_data.append(knb_title)
             dt = '<table class="table table-bordered"><thead>'
             dt += '<tr><th colspan="16">%s</th></tr>' % (rtitle.upper())
@@ -1205,15 +1243,15 @@ def get_raw_data(params, data_type=1):
                         del rd[0:2]
                     else:
                         rd = blanks
-                    raw_data.append([knbcnt, val_name, ''] + rd)
+                    raw_data.append([knbcnt, val_name] + rd)
                     knbcnt += 1
-                raw_data.append([''] + rtotals)
+                raw_data.append(rtotals)
             dt += '<tr><td colspan="2"><b>Total</b></td>'
             dt += '%s' % (rtotal['TOTAL'])
             dt += '<table>'
             data = dt
         elif report_type == 3:
-            discs = {}
+            discs = {'AEES': 'AEES'}
             dvals = {2: 'TANA', 4: 'TARR', 5: 'TRIN', 6: 'TARE'}
             rvals = {4: 'TARR', 5: 'TRIN', 6: 'TARE'}
             evals = {8: 'AEES', 9: 'AEAB', 10: 'TDER',
@@ -1285,7 +1323,7 @@ def get_raw_data(params, data_type=1):
                 depdata = write_row(edata)
                 depdatas = write_row(edata, is_raw=True)
             # Just add title whether there is data or not
-            pop_head = ['Institution Population'] + [''] * 14
+            pop_head = ['Institution Population'] + ['-'] * 14
             pop_title = ['Category', 'Sub-category'] + tblanks + ['Total']
 
             all_var = merge_two_dicts(popdata, dopdata)
@@ -1347,7 +1385,8 @@ def get_raw_data(params, data_type=1):
             if all_vars:
                 raw_data.append(ptotal_raw['TOTAL'])
             data = dt
-    except Exception, e:
+    except Exception as e:
+        print('Error with raw data - %s' % (str(e)))
         raise e
     else:
         return data, raw_data
@@ -1401,7 +1440,7 @@ def get_ovc_values(params, data_type=1):
             a_8 = aggr.ward
             data.append([a_1, a_2, ab, a_3, a_4, a_5, a_6, a_7, a_8])
         dt += '</tbody></table>'
-    except Exception, e:
+    except Exception as e:
         raise e
     else:
         return dt, data
@@ -1411,79 +1450,52 @@ def get_raw_values(params, data_type=1):
     """Method to query summaries."""
     data = []
     try:
+        dt = ''
         adhoc_type = int(params["adhoc_type"])
-        check_fields = ['org_unit_type_id', 'committee_unit_type_id',
-                        'adoption_unit_type_id', 'si_unit_type_id',
-                        'cci_unit_type_id', 'ngo_unit_type_id',
-                        'government_unit_type_id']
-        vals = get_dict(field_name=check_fields)
-        orgs = RegOrgUnit.objects.all()
-        orgs = orgs.filter(is_void=False)
-        orgs = filter_by_date(params, orgs, 'created_at').values(
-            'org_unit_type_id').annotate(
-                unit_count=Count('org_unit_type_id')).order_by('-unit_count')
-        dt = '<table class="table table-bordered">'
-        if adhoc_type == 1:
-            dt += '<thead><tr><th width="40%">Organisation Unit</th>'
-            dt += '<th>TOTAL</th></tr></thead>'
-            total_ou = 0
-            if orgs:
-                data.append(['Organisation Type', 'Count'])
-            for org in orgs:
-                unit_id = org['org_unit_type_id']
-                unit_name = vals[unit_id] if unit_id in vals else unit_id
-                unit_cnt = org['unit_count']
-                total_ou += unit_cnt
-                dt += '<tr><td>%s</td>' % (unit_name)
-                dt += '<td>%s</td></tr>' % (unit_cnt)
-                data.append([unit_name, unit_cnt])
-            dt += '<tr><td>Total</td><td>%s</td></tr>' % (total_ou)
-            if orgs:
-                data.append(['Total', total_ou])
+        if adhoc_type:
+            print 'Run raw sql'
+            adhoc_name = 'GOK_%s' % (adhoc_type)
+            params['other_params'] = ''
+            report_region = params['report_region']
+            if report_region in [2, 3]:
+                pms = params['sub_county_id']
+                sc_list = [str(o_list) for o_list in pms]
+                sc_ids = ','.join(sc_list)
+                qs = 'AND cgeo.report_subcounty_id IN (%s)' % sc_ids
+                params['other_params'] = qs
+            if report_region == 4:
+                org_unit_id = int(params['org_unit'])
+                qs = 'AND cgeo.report_orgunit_id = %s' % (org_unit_id)
+                params['other_params'] = qs
+            if params['cluster'] != '0' and params['cbos']:
+                cbo_ids = params['cbos']
+                qs = 'AND cgeo.report_orgunit_id IN (%s)' % cbo_ids
+                params['other_params'] = qs
+                params['org_unit'] = cbo_ids
+            rpt_name = REPORTS[adhoc_name]
+            sql = QUERIES[rpt_name].format(**params)
+            print(sql)
+            results, desc = run_sql_data(None, sql)
+            # print datas, desc
+            msg = 'Data Rendering Not available for this report.'
+            dt += '<tr><td>Records (%s). %s</td></tr>' % (len(results), msg)
+            titles = []
+            if results:
+                for res in results[0]:
+                    titles.append(res)
+            columns = [col.lower() for col in titles]
+            data = [columns]
+            print 'Results count - ', len(results)
+            for res in results:
+                vals = []
+                for n, i in enumerate(titles):
+                    val = res[i]
+                    if type(val) is unicode:
+                        val = val.encode('ascii', 'ignore').decode('ascii')
+                    vals.append(val)
+                data.append(vals)
 
-        elif adhoc_type == 2:
-            cnt = 0
-            org_unit_name = params['org_unit_name']
-            org_unit_id = params['org_unit']
-            start_date = params['start_date'].strftime('%d-%b-%y')
-            end_date = params['end_date'].strftime('%d-%b-%y')
-            dates = '%s to %s' % (start_date, end_date)
-            inst_regs = OVCPlacement.objects.all().order_by("-admission_date")
-            inst_regs = inst_regs.filter(
-                is_void=False, residential_institution_name=org_unit_id)
-            inst_regs = filter_by_date(params, inst_regs, 'admission_date')
-            dt += '<thead><tr><th colspan="6">%s</th></tr>' % (org_unit_name)
-            dt += '<tr><th colspan="6">Date from %s</th></tr>' % (dates)
-            dt += '<tr><th></th><th width="40%">Names</th><th>Sex</th>'
-            dt += '<th>Age (years)</th><th>Admission date</th>'
-            dt += '<th>Status</th></tr></thead>'
-            tts = ['#', 'Names', 'Sex', 'Age', 'Admission Date', 'Status']
-            if inst_regs:
-                data.append(['', org_unit_name, '', '', ''])
-                data.append(['', 'Date from %s' % (dates), '', '', ''])
-                data.append(tts)
-            for inst_pop in inst_regs:
-                cnt += 1
-                dt += '<tr>'
-                name = inst_pop.person.full_name
-                age = inst_pop.person.years
-                gender_id = inst_pop.person.sex_id
-                gender = "Male" if gender_id == 'SMAL' else 'Female'
-                is_active = inst_pop.is_active
-                active_status = 'Active' if is_active else 'Not Active'
-                place_status = inst_pop.current_residential_status
-                admission_date = inst_pop.admission_date
-                adm_date = admission_date.strftime('%d-%b-%y')
-                status = place_status if place_status else active_status
-                dt += '<td>%s</td>' % (cnt)
-                dt += '<td>%s</td><td>%s</td>' % (name, gender)
-                dt += '<td>%s</td><td>%s</td>' % (age, adm_date)
-                dt += '<td>%s</td>' % (status)
-                dt += '</tr>'
-                data.append([cnt, name, gender, age, adm_date, status])
-        dt += '<table>'
-
-    except Exception, e:
+    except Exception as e:
         raise e
     else:
         return dt, data
@@ -1497,7 +1509,7 @@ def get_institution_data(params, report_id=4):
             data = get_health_data(params)
         elif report_id == 3:
             data = get_population_data(params)
-    except Exception, e:
+    except Exception as e:
         print "Error getting institution data - %s" % (str(e))
         return {}
     else:
@@ -1545,6 +1557,7 @@ def get_population_data(params):
             residential_institution_name__in=org_list,
             is_void=False, admission_date__range=(start_date, end_date))
         place_ids = []
+        oplace_ids = []
         for cl in ip_queryset:
             item = {}
             item['cat'] = cl.admission_type
@@ -1555,14 +1568,23 @@ def get_population_data(params):
             item['cid'] = cl.placement_id
             place_ids.append(cl.placement_id)
             data.append(item)
-        # Last period population data
-        dis_lists = OVCDischargeFollowUp.objects.filter(
-            is_void=False, date_of_discharge__lt=start_date,
-            placement_id_id__in=place_ids)
-        dis_list = dis_lists.values_list('placement_id_id', flat=True)
+        # All old admissions
         old_queryset = OVCPlacement.objects.filter(
             residential_institution_name__in=org_list,
-            is_void=False, admission_date__lt=start_date)
+            is_void=False, admission_date__lte=end_date)
+        for ool in old_queryset:
+            oplace_ids.append(ool.placement_id)
+            # data.append(item)
+        # Last period population data
+        dis_lists = OVCDischargeFollowUp.objects.filter(
+            is_void=False, date_of_discharge__lte=end_date,
+            placement_id_id__in=oplace_ids)
+        dis_list = dis_lists.values_list('placement_id_id', flat=True)
+        '''
+        old_queryset = OVCPlacement.objects.filter(
+            residential_institution_name__in=org_list,
+            is_void=False, admission_date__lte=end_date)
+        '''
         old_queryset = old_queryset.exclude(placement_id__in=dis_list)
         old_data = []
         for ol in old_queryset:
@@ -1599,6 +1621,7 @@ def get_population_data(params):
             eitem['age'] = ds.person.years
             eitem['kid'] = ds.person.id
             eitem['cid'] = ds.placement_id_id
+            print('ADVI', eitem)
             death_data.append(eitem)
         raw_data = data_from_results(data)
         raw_old = data_from_results(old_data)
@@ -1607,7 +1630,7 @@ def get_population_data(params):
         raw_vals = {'data': raw_data, 'odata': raw_old,
                     'ddata': raw_dis, 'death': raw_death}
         return raw_vals
-    except Exception, e:
+    except Exception as e:
         print 'Get institution data error - %s' % (str(e))
         raise e
 
@@ -1650,13 +1673,16 @@ def get_health_data(params):
         # Filter by date only first
         start_date = params['start_date']
         end_date = params['end_date']
+        '''
         ae_queryset = OVCAdverseEventsFollowUp.objects.filter(
+            adverse_condition_description='AEMC',
             placement_id__residential_institution_name__in=org_list,
             is_void=False, adverse_event_date__range=(start_date, end_date))
         ae_lists = ae_queryset.values_list('adverse_condition_id', flat=True)
-        ip_queryset = OVCAdverseEventsOtherFollowUp.objects.all()
-        ip_queryset = ip_queryset.filter(
-            is_void=False, adverse_condition_id__in=ae_lists)
+        '''
+        ip_queryset = OVCAdverseEventsOtherFollowUp.objects.filter(
+            is_void=False,
+            adverse_condition_id__adverse_condition_description='AEMC')
         for cl in ip_queryset:
             item = {}
             person = cl.adverse_condition_id.person
@@ -1667,10 +1693,11 @@ def get_health_data(params):
             item['kid'] = person.id
             item['cid'] = cl.adverse_condition
             data.append(item)
+            print(data)
         raw_data = data_from_results(data)
         raw_vals = {'data': raw_data}
         return raw_vals
-    except Exception, e:
+    except Exception as e:
         print 'Get institution data error - %s' % (str(e))
         raise e
 
@@ -1680,6 +1707,7 @@ def get_totals(all_data, categories, summ=False):
     data, cat = [], None
     cases, children = {}, {}
     try:
+        print(categories)
         if not summ:
             if 'CASE' in all_data:
                 cases = all_data['CASE']
@@ -1688,6 +1716,7 @@ def get_totals(all_data, categories, summ=False):
                 children = all_data['CHILD']
                 del all_data['CHILD']
         for dt in all_data:
+            print(dt)
             vls = all_data[dt]
             if 'cat' in vls:
                 cat = vls['cat']
@@ -1723,8 +1752,8 @@ def get_totals(all_data, categories, summ=False):
                 all_data['CASE'] = cases
             if children:
                 all_data['CHILD'] = children
-    except Exception, e:
-        print 'error - %s' % (str(e))
+    except Exception as e:
+        print('Totals error - %s' % (str(e)))
         pass
     else:
         return data
@@ -1750,7 +1779,7 @@ def col_totals(flist):
         else:
             ttotals = ttls + [0] * 13
         return ttotals
-    except Exception, e:
+    except Exception as e:
         print 'Error get totals - %s' % (str(e))
         return ttls + [0] * 13
 
@@ -1772,7 +1801,7 @@ def get_final_totals(odata, pdata, ddata):
         my_totals.append(new_data_out)
         cal_sum = col_totals(my_totals)
         return cal_sum
-    except Exception, e:
+    except Exception as e:
         raise e
     else:
         return []
@@ -1813,7 +1842,7 @@ def get_others(ddata, evals, new_key=7, is_sum=False):
         cal_sum = col_totals(other_vars)
         cal_sum[0] = new_key
         return cal_sum
-    except Exception, e:
+    except Exception as e:
         print "error flattening other -%s" % (str(e))
         return []
 
@@ -1834,7 +1863,7 @@ def write_row(data, is_raw=False):
             else:
                 row_dict[cat_id] = table_string.replace(tmp_td, '')
         return row_dict
-    except Exception, e:
+    except Exception as e:
         print 'Row error - %s' % (str(e))
         return {}
 
@@ -1865,7 +1894,7 @@ def get_categories(ids=True):
             else:
                 categories[case_id] = case_name
         return categories
-    except Exception, e:
+    except Exception as e:
         print 'Error getting category - %s' % (str(e))
         return {}
 
@@ -1882,7 +1911,7 @@ def get_case_data(params):
             case_info['case_geo'] = case_report.report_subcounty.area_name
             case_info['case_serial'] = case_report.case_id.case_serial
         return case_info
-    except Exception, e:
+    except Exception as e:
         print 'Get case error - %s' % (str(e))
         raise {}
 
@@ -1907,7 +1936,7 @@ def org_unit_tree(org_unit_id):
             ou_id = org_unit.pk
             ou_ids.append(ou_id)
             # org_unit_tree(ou_id, ou_ids)
-    except Exception, e:
+    except Exception as e:
         print "Error getting units tree - %s" % (str(e))
     else:
         return list(set(ou_ids))
@@ -1941,7 +1970,7 @@ def get_performance(request):
             else:
                 cases[pd] = 0
 
-    except Exception, e:
+    except Exception as e:
         print 'error with dashboard - %s' % (str(e))
     else:
         return persons, punits, cases
@@ -1969,7 +1998,7 @@ def get_performance_detail(request, user_id=0, params={}):
             date_case_opened__range=(start_date, end_date)).values(
             'date_case_opened').annotate(case_report=Count('date_case_opened'))
 
-    except Exception, e:
+    except Exception as e:
         print 'error with performance - %s' % (str(e))
     else:
         return persons, cases, reports
@@ -1990,11 +2019,14 @@ def get_variables(request):
         rperiod = request.POST.get('report_period')
         rpt_years = request.POST.get('report_year')
         rpt_iyears = request.POST.get('report_years')
-        report = request.POST.get('report_id')
+        report = request.POST.get('report_id', 0)
         report_unit = request.POST.get('org_unit')
         report_inst = request.POST.get('org_inst')
         org_unit_name = request.POST.get('org_unit_name')
         report_region = int(request.POST.get('report_region'))
+        my_report_id = int(report)
+        if my_report_id == 5:
+            report_type = request.POST.get('report_type_other')
         # results = {'res': sub_county_ids}
         case_categories = get_case_details(['case_category_id'])
         institution_type = request.POST.get('institution_type')
@@ -2003,15 +2035,17 @@ def get_variables(request):
         cluster = request.POST.get('cluster')
         report_ovc = request.POST.get('report_ovc')
         report_ovc_id = request.POST.get('rpt_ovc_id')
+        if not report_type:
+            report_type = request.POST.get('report_type_other')
         rpt_ovc = int(report_ovc) if report_ovc else 1
         rpt_ovc_id = int(report_ovc_id) if report_ovc_id else 1
-        if rpt_ovc == 6 or rpt_ovc in [1, 2, 3]:
+        if rpt_ovc == 6:
             report_ovc_name = ORPTS[rpt_ovc_id]
         else:
             report_ovc_name = RPTS[rpt_ovc]
         report_name = report_ovc_name.title().replace(' ', '')
         categories = {}
-        report_id = int(report) if report else rpt_ovc_id
+        report_id = int(report) if report else 0
         if int(report_id) in [3, 4]:
             report_unit = report_inst
             rpt_years = rpt_iyears
@@ -2069,12 +2103,16 @@ def get_variables(request):
         month = dates[rpd] if rpd in dates else ''
         # Handle calendars
         rpt_dt = request.POST.get('report_period')
+        year = 2019
+        # print('jinga here', rpt_dt, year, month)
         if rpt_dt == 'Other':
             report_from_date = request.POST.get('report_from_date')
             report_to_date = request.POST.get('report_to_date')
             sdate = convert_date(report_from_date)
             edate = convert_date(report_to_date)
+            print(sdate, type(sdate))
             period_params = {'start_date': sdate, 'end_date': edate}
+            year = sdate.year
         else:
             period_params = get_period(
                 report_type=report_type, year=year, month=month, period=ryr)
@@ -2083,10 +2121,19 @@ def get_variables(request):
         report_variables['institution_type'] = institution_type
         org_type_id = org_type if org_type else 'ALL'
         report_variables['org_type'] = org_type_id
-        adhoc_type = adhoc_id if adhoc_id else None
+        adhoc_type = int(adhoc_id) if adhoc_id else 0
         report_variables['adhoc_type'] = adhoc_type
         report_variables['report_ovc'] = report_ovc
         report_variables['report_ovc_name'] = report_name
+        print('RID', report_id)
+        greports = GRPTS[report_id] if report_id in GRPTS else 'CaseLoad'
+        if report_id == 5:
+            greports = ADHC[adhoc_type] if adhoc_type in ADHC else 'Ad hoc'
+        report_variables['label'] = greports.replace(' ', '-')
+        report_variables['year'] = year
+        report_variables['month'] = month
+        p_name = report_name[:-2] if report_name.endswith('ly') else 'Year'
+        report_variables['period_name'] = p_name
         report_variables['cci_si_title'] = region_names[report_region]
         sc = variables['sub_county']
         is_opt = report_region == 4
@@ -2094,11 +2141,16 @@ def get_variables(request):
         si_n = 'National' if report_region == 1 else si_c
         si_name = 'Unit: %s' % org_unit_name if is_opt else si_n
         report_variables['cci_si_name'] = si_name
+        for rval in request.POST:
+            rvalue = request.POST.get(rval)
+            if rval not in report_variables:
+                report_variables[rval] = rvalue
 
         # More parameters
         inst_cats = {}
         inst_cats["TNCI"] = "Charitable Children Institution"
         inst_cats["TNSI"] = "Statutory Institution"
+        # print('VARS 2', variables)
 
         case_institutions = get_case_details(
             ['si_unit_type_id', 'cci_unit_type_id'])
@@ -2122,7 +2174,8 @@ def get_variables(request):
         if report_id == 5 and cluster:
             cbo_id = get_cbo_cluster(cluster)
         report_variables['cbos'] = cbo_id
-    except Exception, e:
+        # print('RVARS', report_variables)
+    except Exception as e:
         print 'error creating variables - %s' % (str(e))
         raise e
     else:
@@ -2137,6 +2190,66 @@ def get_pivot_data(request, params={}):
                        "si_unit_type_id", "committee_unit_type_id",
                        "adoption_unit_type_id"]
         print 'PERMS', params
+
+        sq = ''
+        report_region = params['report_region']
+        if report_region in [2, 3]:
+            sub_county_ids = params['sub_county_id']
+            sub_ids = [str(o_list) for o_list in sub_county_ids]
+            sids = ', '.join(sub_ids)
+            sq = 'and report_subcounty_id in (%s)' % (sids)
+        if report_region == 4:
+            org_ids = params['org_unit']
+            org_unit_ids = [int(org_ids)]
+            sq = 'and report_orgunit_id in (%s)' % (org_ids)
+        params['extras'] = sq
+        sql = QUERIES['pivot_report'].format(**params)
+        print('Start', datetime.now())
+        data, cols = run_rawsql_data(None, sql, 1)
+        df = pd.DataFrame(data)
+        # print('df', df)
+        # dv = df.values.tolist()
+        print("Query done")
+        # print(dv)
+        columns = [col[0] for col in cols]
+        results = df.values.tolist()
+        # print(columns)
+        fdata = [columns] + results
+        # print(fdata)
+
+        ndata = pd.DataFrame(results, columns=columns).fillna(0)
+
+        ds = ndata.to_dict('records')
+        '''
+        for res in results:
+            vals = []
+            for n, i in enumerate(columns):
+                val = res[i]
+                vals.append(val)
+            ds.append(vals)
+        '''
+        '''
+        titles = []
+        results, desc = run_sql_data(None, sql, 1)
+        titles = []
+        if results:
+            for res in results[0]:
+                titles.append(res)
+        # columns = [col.lower() for col in titles]
+        fdata = [titles] + [results]
+
+        print('Results count - ', len(results))
+        for res in results:
+            vals = []
+            for n, i in enumerate(titles):
+                val = res[i]
+                if type(val) is unicode:
+                    val = val.encode('ascii', 'ignore').decode('ascii')
+                vals.append(val)
+            fdata.append(vals)
+        # print(fdata)
+        '''
+        '''
         categories = get_dict(field_name=field_names)
         start_date = params['start_date']
         end_date = params['end_date']
@@ -2144,11 +2257,33 @@ def get_pivot_data(request, params={}):
             case_id__date_case_opened__range=(start_date, end_date))
         gdatas = {}
         cids, cdatas = [], {}
+        closes, cevents, cexcludes, oexcludes = {}, [], [], []
         case_ids = []
         for dt in datas:
             case_ids.append(dt.case_id_id)
         # Get the Geo details
         geos = OVCCaseGeo.objects.filter(case_id__in=case_ids)
+        if report_region in [2, 3]:
+            sub_county_ids = params['sub_county_id']
+            geos_filters = geos.filter(report_subcounty_id__in=sub_county_ids)
+            for geos_filter in geos_filters:
+                cexcludes.append(geos_filter.case_id_id)
+            datas = datas.filter(case_id__in=cexcludes)
+        if report_region == 4:
+            org_ids = params['org_unit']
+            org_unit_ids = [int(org_ids)]
+            orgs_filters = geos.filter(report_orgunit_id__in=org_unit_ids)
+            for orgs_filter in orgs_filters:
+                oexcludes.append(orgs_filter.case_id_id)
+            datas = datas.filter(case_id__in=oexcludes)
+        closures = OVCCaseEventClosure.objects.filter(
+            case_event_id__case_id__in=case_ids)
+        case_events = OVCCaseEvents.objects.filter(
+            case_id__in=case_ids, date_of_event__range=(start_date, end_date))
+        for closure in closures:
+            closes[closure.case_event_id.case_id.case_id] = closure.case_outcome
+        for case_event in case_events:
+            cevents.append(case_event.case_id.case_id)
         for geo in geos:
             scname = geo.report_subcounty.area_name
             cname = geo.report_subcounty.parent_area_id
@@ -2163,6 +2298,9 @@ def get_pivot_data(request, params={}):
         for county in counties:
             cdatas[county.area_id] = county.area_name
         records = []
+        ds = [['Category', 'Age', 'Unit Type', 'Sex', 'County', 'Sub County',
+               'Organisation Unit', 'OVCCount', 'Case Status', 'Month',
+               'Qtr', 'Case Date', 'System Date', 'Year']]
         for data in datas:
             case_id = data.case_id_id
             sex_id = data.person.sex_id
@@ -2176,17 +2314,48 @@ def get_pivot_data(request, params={}):
             category = categories[cat_id] if cat_id in categories else cat_id
             org_unit = gdatas[case_id]['oname'] if has_case else 'UK'
             unit_type = categories[tid] if tid in categories else tid
+            status = ' Closed' if case_id in closes else 'Active'
+            if status == 'Active':
+                status = 'Active' if case_id in cevents else 'Pending'
             # county = data.case_id.ovccasegeo.occurrency_county
             sex = 'Male' if sex_id == 'SMAL' else 'Female'
+            quotas = {1: 3, 2: 3, 3: 3, 4: 4, 5: 4, 6: 4,
+                      7: 1, 8: 1, 9: 1, 10: 2, 11: 2, 12: 2}
+            report_month = data.case_id.date_case_opened.strftime('%m-%b')
+            rept_mon = int(data.case_id.date_case_opened.strftime('%m'))
+            report_year = data.case_id.date_case_opened.strftime('%Y')
+            case_date = data.case_id.date_case_opened.strftime('%d-%b-%Y')
+            system_date = data.case_id.timestamp_created.strftime('%d-%b-%Y')
+            quota = 'Qtr%s' % (quotas[rept_mon])
+            report_quarter = ''
             record = {'Category': category, 'Age': age, 'Unit Type': unit_type,
                       'Sex': sex, 'County': county, 'Sub County': scounty,
-                      'Organisation Unit': org_unit, 'OVCCount': 1}
+                      'Organisation Unit': org_unit, 'OVCCount': 1,
+                      'Status': status, 'Month': report_month, 'Qtr': quota,
+                      'Case Date': case_date, 'System Date': system_date,
+                      'Year': report_year}
             records.append(record)
-    except Exception, e:
+            ds.append([category, age, unit_type, sex, county, scounty,
+                       org_unit, 1, status, report_month, quota, case_date,
+                       system_date, report_year])
+        '''
+        params['archive'] = True
+        params['report_id'] = 100
+        stime = '%s00' % (datetime.now().strftime('%Y%m%d%H'))
+        file_name = '%s-CaseLoad.%s' % (request.user.id, stime)
+        dx = int(params['report_excel']) if 'report_excel' in params else 0
+        print(dx)
+        excel_file = ''
+        if dx == 1:
+            excel_file, html = write_pd_csv(ndata, file_name, params)
+        results = {'file_name': excel_file, 'records': ds, 'code': 0}
+        print('End', datetime.now())
+    except Exception as e:
         print 'error getting pivot data - %s' % (str(e))
-        raise e
+        results = {'file_name': '', 'records': '', 'code': 9}
+        return results
     else:
-        return records
+        return results
 
 
 def get_geo_details(geo_ids):
@@ -2305,7 +2474,7 @@ def get_domain_data(params):
                   'end_date': end_date, 'domains': domain}
         sql = QUERIES['pepfar'].format(**params)
         datas, desc = run_sql_data(None, sql)
-    except Exception, e:
+    except Exception as e:
         print 'error getting domain data - %s' % str(e)
     else:
         return datas
@@ -2379,7 +2548,7 @@ def get_registration_data(kpis, params):
                             'County': county, 'Ward': ward,
                             'Performance Indicator': kpi}
                     datas.append(data)
-    except Exception, e:
+    except Exception as e:
         raise e
     else:
         return datas
@@ -2441,78 +2610,18 @@ def get_services_data(servs, params):
         # format_data(rows2, datas)
         datas = datas + rows + rows1 + rows2
         print 2, time.clock() - start
-    except Exception, e:
+    except Exception as e:
         print 'datim error - %s' % (str(e))
         raise e
     else:
         return datas
 
 
-
-def get_viral_load_rpt_stats(params):
-    """Get viral load data."""
-    try:
-
-        results = []
-        start = time.clock()
-
-        cbo = params['org_unit']
-        cbo_id = int(cbo) if cbo else 0
-        rpt_id = params['report_region']
-
-        cluster = params['cluster'] if 'cluster' in params else 0
-        report_id = int(rpt_id) if rpt_id else 0
-        # cbos = [cbo_id]
-        print "cbos id {}".format(cbo_id)
-        if report_id == 5:
-            cbo_id = get_cbo_cluster(cluster)
-            # cbos = cbo_id.split(',')
-        with connection.cursor() as cursor:
-            try:
-                query = ''' SELECT ovc_reg.person_id ,CONCAT (reg_person.surname,' ',reg_person.first_name, ' ', reg_person.other_names)  AS "Full name",vl.viral_load as vload 
-                        FROM ovc_registration ovc_reg inner join reg_person reg_person on reg_person.id=ovc_reg.person_id inner join 
-                        ovc_viral_load vl on vl.person_id = ovc_reg.person_id where ovc_reg.art_status = 'ARAR'                             
-                        '''
-                if cbo_id:
-                    query = query + " and ovc_reg.child_cbo_id in ({})".format(cbo_id)
-
-                cursor.execute(
-                    query
-                )
-                result_set = cursor.fetchall()
-
-                for ovc_person in result_set:
-                    suppression = "N/A"
-
-                    try:
-                        if (int(ovc_person[2]) < 1000):
-                            suppression = "Suppressed"
-                        elif (int(ovc_person[2]) > 1000):
-                            suppression = "Not Suppressed"
-                    except Exception, e:
-                        pass
-                    results.append({'CPIMS ID': ovc_person[0], 'NAME': ovc_person[1], 'VIRAL LOAD': ovc_person[2],
-                                    'SUPPRESSION': suppression})
-
-            except Exception, e:
-                print 'error viral load stats - %s' % (str(e))
-
-        return results
-    except Exception, e:
-        print 'viral load report error - %s' % (str(e))
-        raise e
-    else:
-        return results
-
-
-
-
-
 def get_pivot_ovc(request, params={}):
     """Method to get OVC Pivot Data."""
     try:
         datas = []
-        report_id = int(request.POST.get('rpt_ovc_id'))
+        report_id = int(request.POST.get('report_ovc'))
         kpis = {}
         kpis[1] = '1.a %s OVCs Ever Registered'
         kpis[2] = '1.b %s New OVC Registrations within period'
@@ -2551,7 +2660,6 @@ def get_pivot_ovc(request, params={}):
         services[1] = 'a.OVC HIVSTAT'
         services[2] = 'b.OVC Served'
         services[3] = 'c.OVC Not Served'
-        '''
         if report_id == 3:
             datas = get_registration_data(kpis, params)
         elif report_id == 2:
@@ -2559,9 +2667,8 @@ def get_pivot_ovc(request, params={}):
         elif report_id == 1:
             datas = get_services_data(services, params)
         else:
-        '''
-        datas, titles = get_sql_data(request, params)
-    except Exception, e:
+            datas, titles = get_sql_data(request, params)
+    except Exception as e:
         print 'Error getting OVC pivot data - %s' % (str(e))
         return []
     else:
@@ -2580,7 +2687,7 @@ def write_xls(response, data, titles=None):
             ws.append(dt)
         # Save the file
         wb.save(response)
-    except Exception, e:
+    except Exception as e:
         print "error creating excel - %s" % (str(e))
         raise e
     else:
@@ -2611,11 +2718,104 @@ def write_xlsm(csv_file, file_name, report_id=1):
         else:
             file_name = ""
             print 'No Macros Script - %s' % (vba_file)
-    except Exception, e:
+    except Exception as e:
         print "error creating excel - %s" % (str(e))
         return ""
     else:
         return file_name
+
+
+def write_csv(data, file_name, params):
+    """Method to write csv given data."""
+    try:
+        html = ''
+        csv_file = '%s/%s.csv' % (MEDIA_ROOT, file_name)
+        with open(csv_file, 'wb') as csvfile:
+            csvwriter = csv.writer(csvfile, delimiter=',', quotechar='"',
+                                   quoting=csv.QUOTE_MINIMAL)
+            csvwriter.writerows(data)
+        mc = memcache.Client(['127.0.0.1:11211'], debug=0)
+        print('PARAMS', params)
+        dates = '%s' % (params['start_date'].strftime("%d, %b %Y"))
+        dates += ' to %s' % (params['end_date'].strftime("%d, %b %Y"))
+        mc.set(str(file_name), dates)
+        # Save excel to flat file
+        rid = params['report_id'] if 'report_id' in params else 1
+        rheaders = False
+        if rid == 5:
+            rheaders = True
+            rid = params['adhoc_type']
+        report_id = int(rid) + 100
+        s_name = RPTS[report_id] if report_id in RPTS else 100
+        vba_file = '%s/%s/vbaProject.bin' % (DOC_ROOT, s_name)
+        # print('VBA File', s_name, report_id)
+        excel_file = ''
+        if 'archive' in params:
+            # print 'RID', file_name, s_name
+            epoch_time = '%s00' % (datetime.now().strftime('%Y%m%d%H'))
+            if file_name.startswith('tmp'):
+                file_name = file_name.replace('tmp-', '')
+                rnames = base64.urlsafe_b64decode(str(file_name))
+                # print rnames
+                report_details = rnames.split('_')
+                s_name = '%s.%s' % (report_details[0], epoch_time)
+                uid = report_details[-1]
+                fname = '%s-%s' % (uid, s_name)
+            else:
+                fname = file_name
+            df_new = pd.read_csv(csv_file)
+            # Write to html
+            html = df_new.to_html(
+                index=False, header=rheaders, classes='table', na_rep='',
+                float_format=None)
+            excel_file = '%s.xlsx' % (fname)
+            xlsx_file = '%s/xlsx/%s.xlsx' % (MEDIA_ROOT, fname)
+            writer = pd.ExcelWriter(xlsx_file, engine='xlsxwriter')
+            df_new.to_excel(writer, sheet_name='Sheet1', index=False)
+            # This is it
+            workbook = writer.book
+            xlsm_file = '%s/xlsx/%s.xlsm' % (MEDIA_ROOT, fname)
+            workbook.add_worksheet('Sheet2')
+            workbook.add_worksheet('Sheet3')
+            if os.path.isfile(vba_file):
+                excel_file = excel_file.replace('xlsx', 'xlsm')
+                workbook.filename = xlsm_file
+                workbook.add_vba_project(vba_file)
+            writer.save()
+            writer.close()
+            print 'Excel Files', xlsm_file, xlsx_file
+    except Exception as e:
+        print 'Error creating csv Results - %s' % (str(e))
+        pass
+    else:
+        return excel_file, html
+
+
+def write_pd_csv(df, file_name, params, is_csv=0):
+    """Method to write csv given data."""
+    try:
+        html = ''
+        if is_csv:
+            print('Start csv')
+            csv_file = '%s/%s.csv' % (MEDIA_ROOT, file_name)
+            df.to_csv(csv_file, index=False, encoding='utf-8')
+        # Now to excel
+        report_id = 105
+        s_name = RPTS[report_id] if report_id in RPTS else 100
+        vba_file = '%s/%s/vbaProject.bin' % (DOC_ROOT, s_name)
+        # Write to html
+        print('Start excel')
+
+        excel_file = '%s.xlsx' % (file_name)
+        xlsx_file = '%s/xlsx/%s.xlsx' % (MEDIA_ROOT, file_name)
+
+        df.to_excel(xlsx_file, index=False)
+        print 'Excel Files', xlsx_file
+    except Exception as e:
+        print 'Error creating csv Results - %s' % (str(e))
+        pass
+    else:
+        return excel_file, html
 
 
 def get_sql_data(request, params):
@@ -2636,17 +2836,15 @@ def get_sql_data(request, params):
     qname = REPORTS[rpt_ovc] if rpt_ovc in REPORTS else df_rpt
     sql = QUERIES[qname]
     sql = sql.format(**params)
-    print 'Report Name', qname
+    print 'nnnnn'
     row, desc = run_sql_data(request, sql)
     data = datas + row
-    '''
     qblank = '%s_blank' % (qname)
     if qblank in QUERIES:
         bsql = QUERIES[qblank]
         bsql = bsql.format(**params)
         brow, bdesc = run_sql_data(request, bsql)
         data = data + brow
-
     for i in range(1, 5):
         qs = '%s_%s' % (qname, str(i))
         qb = '%s_blank_%s' % (qname, str(i))
@@ -2660,21 +2858,22 @@ def get_sql_data(request, params):
             sql = sql.format(**params)
             brow, desc = run_sql_data(request, sql)
             data = data + brow
-    '''
     return data, desc
 
 
-def dictfetchall(cursor):
+def dictfetchall(cursor, cs=0):
     "Return all rows from a cursor as a dict"
     column = [col[0] for col in cursor.description]
     columns = [col.upper() for col in column]
+    if cs:
+        columns = column
     return [
         collections.OrderedDict(zip(columns, row))
         for row in cursor.fetchall()
     ]
 
 
-def run_sql_data(request, sql):
+def run_sql_data(request, sql, cs=0):
     """
     Method to handle Database connections
     User Reporting DB for reporting but
@@ -2687,16 +2886,42 @@ def run_sql_data(request, sql):
         with dbinstance.cursor() as cursor:
             cursor.execute(sql)
             desc = cursor.description
-            rows = dictfetchall(cursor)
+            rows = dictfetchall(cursor, cs)
     except Exception as e:
         print 'Defaulting to Transaction DB - %s' % (str(e))
         with connection.cursor() as cursor:
             cursor.execute(sql)
             desc = cursor.description
-            rows = dictfetchall(cursor)
+            rows = dictfetchall(cursor, cs)
         return rows, desc
     else:
         return rows, desc
+
+
+def run_rawsql_data(request, sql, cs=0):
+    """
+    Method to handle Database connections
+    User Reporting DB for reporting but
+    Fallback to Transaction DB if any error
+    """
+    try:
+        db_inst = 'default'
+        dbinstance = connections[db_inst]
+        print 'Query Reporting database .....'
+        with dbinstance.cursor() as cursor:
+            cursor.execute(sql)
+            # pd.read_sql_query(sql, cursor)
+            desc = cursor.description
+            data = cursor.fetchall()
+    except Exception as e:
+        print 'Defaulting to Transaction DB - %s' % (str(e))
+        with connection.cursor() as cursor:
+            cursor.execute(sql)
+            desc = cursor.description
+            data = cursor.fetchall()
+        return data, desc
+    else:
+        return data, desc
 
 
 def get_cbo_cluster(cluster_id):
@@ -2709,7 +2934,7 @@ def get_cbo_cluster(cluster_id):
         for a_list in my_list:
             cbo_list.append(str(a_list))
         cbos = ', '.join(cbo_list)
-    except Exception, e:
+    except Exception as e:
         error = 'Error getting cluster cbo - %s' % (str(e))
         print error
         return 0
@@ -2750,7 +2975,7 @@ def get_cluster(request, id=0):
                 cs[cluster_id]['cbo_ids'].append(cbo_id)
         for ci in cs:
             clusters.append(cs[ci])
-    except Exception, e:
+    except Exception as e:
         error = 'Error getting cluster - %s' % (str(e))
         print error
         return []
@@ -2827,7 +3052,7 @@ def get_clusters(user, default_txt=False):
         for a_list in my_list:
             unit_names = a_list.cluster_name
             all_list[a_list.id] = unit_names
-    except Exception, e:
+    except Exception as e:
         error = 'Error getting list - %s' % (str(e))
         print error
         return ()
@@ -2981,6 +3206,220 @@ def get_dashboard_summary(request, report_id, category_id=0):
         return []
     else:
         return datas
+
+
+def get_org_unit(request, org_unit_id):
+    """Method to get org unit."""
+    try:
+        org_unit = RegOrgUnit.objects.get(org_unit_id_vis=org_unit_id)
+    except Exception:
+        return org_unit_id
+    else:
+        return org_unit.org_unit_name
+
+
+def get_styles():
+    """Method to get styles."""
+    try:
+        styles = getSampleStyleSheet()
+        styles.add(ParagraphStyle(name='Center', alignment=TA_CENTER))
+        styles.add(ParagraphStyle(name='Right', alignment=TA_RIGHT))
+        styles.add(ParagraphStyle(name='Left', alignment=TA_LEFT))
+        styles.add(ParagraphStyle(
+            name='Line_Data', alignment=TA_LEFT, fontSize=8,
+            leading=11, fontColor='#FFFFFF'))
+        styles.add(ParagraphStyle(
+            name='Line_Data_Small', alignment=TA_LEFT,
+            fontSize=7, leading=8))
+        styles.add(ParagraphStyle(
+            name='Line_Data_Large', alignment=TA_LEFT,
+            fontSize=12, leading=15))
+        styles.add(ParagraphStyle(
+            name='Line_Data_Largest', alignment=TA_LEFT,
+            fontSize=14, leading=15))
+        styles.add(ParagraphStyle(
+            name='Line_Label', font='Helvetica-Bold',
+            fontSize=7, leading=6, alignment=TA_LEFT))
+        styles.add(ParagraphStyle(
+            name='Line_Label1', font='Helvetica-Bold', fontSize=7,
+            leading=6, alignment=TA_RIGHT))
+        styles.add(ParagraphStyle(
+            name='Line_Label_Center', font='Helvetica-Bold',
+            fontSize=12, alignment=TA_CENTER))
+    except Exception as e:
+        raise e
+    else:
+        return styles
+
+
+def get_header(element, report_name, region, dates, styles):
+    """Method to get header."""
+    try:
+        datenow = datetime.now()
+        tarehe = datenow.strftime("%d, %b %Y %I:%M %p")
+        url = 'https://childprotection.go.ke'
+        # Handle headers
+        address = '<b>MINISTRY OF LABOUR AND SOCIAL PROTECTION'
+        address += "<br />STATE DEPARTMENT FOR SOCIAL PROTECTION"
+        address += "<br />DEPARTMENT OF CHILDREN'S SERVICES</b>"
+        report_number = '%s\n%s CPIMS Report\n%s' % (url, report_name, tarehe)
+        bar_code = BarCode(value='%s' % (report_number))
+        # Logo
+        logo = "%s/img/logo_gok.png" % (STATIC_ROOT)
+        sd = Image(logo)
+        sd.drawHeight = 0.6 * inch
+        sd.drawWidth = 0.7 * inch
+        srg = 'CPIMS %s Report' % (region)
+        data1 = [[sd, Paragraph(address, styles["Line_Data_Large"]),
+                  Paragraph(srg, styles["Line_Data_Large"]), bar_code],
+                 ['', '', Paragraph(dates, styles["Line_Label"]), '']]
+        tt = Table(
+            data1, colWidths=(2.1 * cm, None, 5.9 * cm, 3.4 * cm,),
+            rowHeights=(1.2 * cm, .5 * cm,))
+
+        tt.setStyle(TableStyle([
+            ('INNERGRID', (2, 0), (2, 1), 0.25, colors.black),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ]))
+        discl = '<b>NOTE: This is a computer generated report <br /> '
+        discl += ' as at %s.</b>' % (tarehe)
+        element.append(tt)
+        element.append(Spacer(0.1 * cm, .2 * cm))
+        data1 = [[Paragraph('Report<br />Name:', styles["Line_Label"]),
+                  Paragraph(report_name, styles["Line_Data_Largest"]),
+                  Paragraph(discl, styles["Line_Data_Small"]), ]]
+
+        t0 = Table(data1, colWidths=(2 * cm, None, 6.1 * cm,))
+        t0.setStyle(TableStyle([
+            ('INNERGRID', (1, 0), (-1, -1), 0.25, colors.black),
+            ('BOX', (0, 0), (-1, -1), 0.25, colors.black),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ]))
+
+        element.append(t0)
+    except Exception as e:
+        raise e
+    else:
+        pass
+
+
+def write_pdf(request, response, file_name):
+    """Method to write to pdf from pandas."""
+    try:
+
+        # datas = pd.DataFrame(data)
+        rparams = file_name.split('_')
+        rid = int(rparams[3])
+        region = rparams[0].replace('-', ' ')
+        report_name = rparams[1].replace('-', ' ')
+        ou = None
+        if 'OU ' in region:
+            ou_id = region.replace('OU ', '')
+            ou_name = get_org_unit(request, ou_id)
+            report_name = "%s (%s)" % (report_name, ou_name)
+        styles = get_styles()
+        element = []
+        # Get headers for the report
+        mc = memcache.Client(['127.0.0.1:11211'], debug=0)
+        #dates = mc.get(file_name.replace('.pdf', ''))
+        fname = str(file_name)
+        dates = mc.get(fname.replace('.pdf', ''))
+        get_header(element, report_name, region, dates, styles)
+        csv_file = '%s/%s' % (MEDIA_ROOT, file_name)
+        df = pd.read_csv(csv_file.replace('.pdf', '.csv'), na_filter=False)
+        col_size = len(df.columns)
+        dt_size = len(df.index)
+        ds = dt_size - 1
+        style = TableStyle(
+            [('INNERGRID', (0, 0), (-1, -1), 0.25, colors.black),
+             ('BOX', (0, 0), (-1, -1), 0.5, colors.black),
+             ('VALIGN', (0, 0), (-1, 0), 'MIDDLE'),
+             ('ALIGN', (2, 2), (-1, -1), 'RIGHT'),
+             ('FONTNAME', (0, ds), (-1, -1), 'Helvetica-Bold'),
+             ('FONTNAME', (col_size - 1, 0), (-1, -1), 'Helvetica-Bold'),
+             ('BACKGROUND', (0, 0), (-1, 0), '#89CFF0')])
+        # Configure columns
+        cols0 = {1: 7.9 * cm, 3: 5.7 * cm, 4: 8.55 * cm}
+        cols1 = {1: 1.5 * cm, 3: 3.7 * cm, 4: 0.85 * cm}
+
+        col = cols0[rid] if rid in cols0 else None
+        col1 = cols1[rid] if rid in cols1 else None
+        cols = tuple([col1, col] + [1.42 * cm] * (col_size - 2))
+        # datas = df.reset_index().values.tolist()
+        datas = np.array(df.reset_index(drop=True).get_values()).tolist()
+        if rid == 5:
+            cols = tuple([None] * (col_size - 1) + [3 * cm])
+            dfs = pd.pivot_table(df, values='ovccount',
+                                 index=['case category'],
+                                 columns=['agerange', 'sex'],
+                                 aggfunc=sum,
+                                 margins=True, margins_name='Total',
+                                 fill_value=0)
+            # datas = np.vstack((list(dfs), np.array(dfs))).tolist()
+            dt_size = len(dfs.index)
+            col_size = len(df.columns)
+            ds = dt_size + 2
+            style = TableStyle(
+                [('INNERGRID', (0, 0), (-1, -1), 0.25, colors.black),
+                 ('BOX', (0, 0), (-1, -1), 0.5, colors.black),
+                 ('VALIGN', (0, 0), (-1, 0), 'MIDDLE'),
+                 ('ALIGN', (1, 3), (-1, -1), 'RIGHT'),
+                 ('FONTNAME', (0, ds), (-1, -1), 'Helvetica-Bold'),
+                 ('FONTNAME', (col_size - 1, 0), (-1, -1), 'Helvetica-Bold'),
+                 ('BACKGROUND', (0, 0), (-1, 0), '#89CFF0')])
+
+            # datas = np.array(dfs.reset_index().get_values()).tolist()
+            '''
+            pvt_levels = list(dfs.reset_index().columns.levels)
+            pvt_labels = list(dfs.reset_index().columns.labels)
+            pvt_names = list(dfs.reset_index().columns.names)
+            print(pvt_levels, pvt_labels, pvt_names)
+            '''
+            pvt_names = list(dfs.reset_index().columns.names)
+            dcols = {}
+            dsize = len(dfs.columns.values)
+            pvt_values = list(dfs.reset_index().columns.values)
+            # titles = list(pvt_values[0]) + pvt_names
+            col_length = 0
+            for col in pvt_values:
+                col_length = len(col)
+                break
+            for i in range(0, col_length):
+                for col in pvt_values:
+                    if i not in dcols:
+                        dcols[i] = [col[i]]
+                    else:
+                        dcols[i].append(col[i])
+            fcls = []
+            for fc in dcols:
+                fcls.append(dcols[fc])
+            data_list = dfs.reset_index().values.tolist()
+            datas = [[''] + pvt_names] + fcls + data_list
+            d0 = 27.86 - (2.22 * dsize)
+            cols = tuple([d0 * cm] + [2.22 * cm] * dsize)
+        t1 = Table(datas, colWidths=cols)
+        t1.setStyle(style)
+        element.append(t1)
+        # Write the document
+        doc = SimpleDocTemplate(
+            response, pagesize=A4, rightMargin=20,
+            leftMargin=20, topMargin=30, bottomMargin=32,
+            keywords="CPIMS, Child Protection in Kenya, UNICEF, DCS, <!NMA!>")
+        if rid in [1, 3, 4, 5]:
+            doc.pagesize = landscape(A4)
+        element.append(Spacer(0.1 * cm, .2 * cm))
+        # doc.build(element)
+        doc.watermark = 'CPIMS'
+        doc.fund_name = ''
+        doc.report_info = ''
+        doc.source = 'Child Protection Information Management System (CPIMS)'
+        doc.build(element, onFirstPage=draw_page, onLaterPages=draw_page,
+                  canvasmaker=Canvas)
+    except Exception as e:
+        print('pdf error', e)
+        raise
+    else:
+        pass
 
 
 if __name__ == '__main__':

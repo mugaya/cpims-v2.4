@@ -122,7 +122,6 @@
                                 <button type="button" id="rpt-download" class="btn btn-sm btn-primary m-r-5"><i class="fa fa-download"></i> Download</button>
                                 <span  id="other_reports"></span>
                                 <input type="hidden" name="rpt_id" id="rpt_id">
-                                <input type="hidden" name="rpt_ovc_id" id="rpt_ovc_id" value="51">
                             </div>
                         </div>
                     </div>
@@ -192,38 +191,36 @@ jQuery(document).ready(function() {
                 var intFormat = numberFormat({digitsAfterDecimal: 0});
                 $("#rpt_id").val(file_name);
 
-                var url = '<a href="{% url "archived_reports" file_name="0000" %}"';
+                var url = '<a href="{% url "download_reports" file_name="0000" %}"';
                 // XLS
-                var xlsm = url.replace('0000', xls);
+                var xlsm = url.replace('0000', xls+'.xlsm');
                 xlsm += 'class="btn btn-sm btn-danger active m-r-5">';
                 xlsm += '<i class="fa fa-file-excel-o"></i> Excel</a>';
                 if (status == 0){
                     $('#other_reports').html(xlsm);
-                    $('#map-print, #rpt-download').show();
+                }
 
-                    var renderers = $.extend(
-                        $.pivotUtilities.renderers,
-                        $.pivotUtilities.c3_renderers
-                        );
-                    $("#report_html").pivotUI(data, {
-                        //renderers: renderers,
-                        cols: [ "AGERANGE", "GENDER"],
-                        rows: ["WARD", "DOMAIN"],
-                        aggregators: {
-                            "Number of OVC":  function() { 
-                                return tpl.count()()
-                            },
-                            "Sum of OVC":  function() { 
-                                return tpl.sum(intFormat)(["OVCCOUNT"]) 
-                            }
+                var renderers = $.extend(
+                    $.pivotUtilities.renderers,
+                    $.pivotUtilities.c3_renderers
+                    );
+                $("#report_html").pivotUI(data, {
+                    //renderers: renderers,
+                    cols: [ "AGERANGE", "GENDER"],
+                    rows: ["WARD", "DOMAIN"],
+                    aggregators: {
+                        "Number of OVC":  function() { 
+                            return tpl.count()()
                         },
-                        rendererName: "Table"
-                    }, true);
-                    //
-                    $('#report_results').html("");
-                }else{
-                    $('#report_results').html(message);
-                }    
+                        "Sum of OVC":  function() { 
+                            return tpl.sum(intFormat)(["OVCCOUNT"]) 
+                        }
+                    },
+                    rendererName: "Table"
+                }, true);
+                //
+                $('#report_results').html("");
+                $('#map-print, #rpt-download').show();
  
             },
             // handle a non-successful response

@@ -1,322 +1,172 @@
 """Registry common functions."""
 import uuid
 import json
+import calendar
+import collections
 from datetime import datetime, timedelta
 from django.utils import timezone
-from django.db import connection
 from django.shortcuts import get_object_or_404
-from cpovc_main.models import SetupGeography, SetupList, RegTemp
+from cpovc_main.models import SetupGeography, SetupList, RegTemp, SetupLocation
 from cpovc_main.functions import convert_date, get_dict
 from django.db.models import Q, Count
+from django.db import connection
 from .models import (
     RegOrgUnitContact, RegOrgUnit, RegOrgUnitExternalID, RegOrgUnitGeography,
     RegPersonsOrgUnits, RegPersonsExternalIds, RegPerson, RegPersonsGeo,
-    RegPersonsTypes, RegPersonsSiblings, RegPersonsAuditTrail, AppUser,
-    RegOrgUnitsAuditTrail, OVCHouseHold, PersonsMaster)
+    RegPersonsTypes, RegPersonsSiblings, RegPersonsAuditTrail,
+    RegOrgUnitsAuditTrail, OVCHouseHold, PersonsMaster, RegPersonsOtherGeo)
 
 from cpovc_ovc.models import OVCRegistration, OVCHHMembers, OVCEligibility
 
-from cpovc_auth.models import CPOVCUserRoleGeoOrg
+from cpovc_auth.models import CPOVCUserRoleGeoOrg, CPOVCProfile, AppUser
 from cpovc_forms.models import (
-    OVCCaseRecord, OVCCaseCategory, OVCCaseGeo, OVCCareServices)
+    OVCCaseRecord, OVCCaseCategory, OVCCaseGeo, OVCCaseEventSummon,
+    OVCCaseEventCourt, OVCReferral, OVCCaseEventClosure, OVCPlacement,
+    OVCCaseEventServices, OVCDischargeFollowUp)
 
-from cpovc_reports.functions import run_sql_data
-from cpovc_reports.queries import QUERIES
-
-from django.db import connection
+from random import randint
 
 organisation_id_prefix = 'U'
 benficiary_id_prefix = 'B'
 workforce_id_prefix = 'W'
 
 
-def get_hiv_suppression_stats(request,org_ids):
-    suppressed = 0
-    not_suppressed = 0
-    ids = ','.join(str(e) for e in org_ids)
-    # get suppresion stats
-    if request.user.is_superuser:
-
-        with connection.cursor() as cursor:
-            try:
-                cursor.execute(
-                    "SELECT count(*) FROM ovc_viral_load ovl inner join ovc_registration ovc on CAST (ovl.person_id  AS Varchar) = CAST (ovc.id  AS Varchar) "
-                    "where CAST (ovl.viral_load  AS Varchar) != 'lds' or ovl.viral_load < 1000"
-                    " and ovc.art_status = 'ARAR' and ovc.child_cbo_id in ({0})".format(ids)
-                )
-                suppressed = cursor.fetchall()[0][0]
-
-                cursor.execute(
-                    "SELECT count(*) FROM ovc_viral_load ovl inner join ovc_registration ovc on CAST (ovl.person_id  AS Varchar) = CAST (ovc.id  AS Varchar) "
-                    "where CAST (ovl.viral_load  AS Varchar) = 'lds' or ovl.viral_load > 1000"
-                    " and ovc.art_status = 'ARAR'"
-                )
-                not_suppressed = cursor.fetchall()[0][0]
-
-            except Exception, e:
-                print 'error fetching suppression stats - %s' % (str(e))
-    else:
-
-        with connection.cursor() as cursor:
-            try:
-                cursor.execute(
-                    "SELECT count(*) FROM ovc_viral_load ovl inner join ovc_registration ovc on CAST (ovl.person_id  AS Varchar) = CAST (ovc.id  AS Varchar) "
-                    "where CAST (ovl.viral_load  AS Varchar) != 'lds' or ovl.viral_load < 1000"
-                    " and ovc.art_status = 'ARAR' and ovc.child_cbo_id in ({0})".format(ids)
-                )
-                suppressed = cursor.fetchall()[0][0]
-
-                cursor.execute(
-                    "SELECT count(*) FROM ovc_viral_load ovl inner join ovc_registration ovc on CAST (ovl.person_id  AS Varchar) = CAST (ovc.id  AS Varchar) "
-                    "where CAST (ovl.viral_load  AS Varchar) = 'lds' or ovl.viral_load > 1000"
-                    " and ovc.art_status = 'ARAR' and ovc.child_cbo_id in ({0})".format(ids)
-                )
-                not_suppressed = cursor.fetchall()[0][0]
-
-            except Exception, e:
-                print 'error fetching suppression stats - %s' % (str(e))
-    return suppressed, not_suppressed
-
-
-def get_super_user_hiv_dashboard_stats(request,org_ids):
-    ovc_unknown_count, ovc_HSTN, on_art, not_on_art, ovc_HSTP = 0, 0, 0, 0, 0
-    with connection.cursor() as cursor:
-        try:
-            cursor.execute(
-                "Select count(*)  from ovc_registration"
-            )
-            row = cursor.fetchone()
-            ovc_reg_all_count = row[0]
-
-            cursor.execute(
-                "select count(*) from ovc_registration where hiv_status='HSTP' or hiv_status= 'HSTN'"
-            )
-            row = cursor.fetchone()
-            ovc_reg_known_count = row[0]
-
-            cursor.execute(
-                "select count(*) from ovc_registration where hiv_status = 'HSTP'"
-            )
-            row = cursor.fetchone()
-            ovc_HSTP = row[0]
-
-            ovc_unknown_count = ovc_reg_all_count - ovc_reg_known_count
-
-
-            cursor.execute(
-                "select count(*) from ovc_registration where art_status='ARAR'"
-
-            )
-            row = cursor.fetchone()
-            on_art = row[0]
-
-            cursor.execute(
-                "select  count(*) from ovc_registration where  hiv_status = 'HSTN'"
-            )
-            row = cursor.fetchone()
-
-            ovc_HSTN = row[0]
-            not_on_art = ovc_HSTP - on_art
-
-        except Exception, e:
-            print 'error on get_super_user_hiv_dashboard_stats - %s' % (str(e))
-
-    return ovc_unknown_count,ovc_HSTN, on_art, not_on_art, ovc_HSTP
-
-
-def get_normal_user_hiv_dashboard_stats(request,org_ids):
-    ovc_unknown_count, ovc_HSTN, on_art, not_on_art, ovc_HSTP = 0, 0, 0, 0, 0
-    ids = ','.join(str(e) for e in org_ids)
-    with connection.cursor() as cursor:
-        try:
-            cursor.execute(
-                "Select count(person_id)  from ovc_registration where child_cbo_id in ({0})".format(ids)
-            )
-            row = cursor.fetchone()
-            ovc_reg_all_count = row[0]
-
-            cursor.execute(
-                "select count(person_id) from ovc_registration where (hiv_status='HSTP' or hiv_status= 'HSTN') and child_cbo_id in ({0})".format(ids)
-            )
-
-            row = cursor.fetchone()
-            ovc_reg_known_count = row[0]
-
-            cursor.execute(
-                "select count(person_id) from ovc_registration where hiv_status = 'HSTP' and child_cbo_id in ({0})".format(ids)
-            )
-            row = cursor.fetchone()
-            ovc_HSTP = row[0]
-
-            ovc_unknown_count = ovc_reg_all_count - ovc_reg_known_count
-
-            cursor.execute(
-                "select count(person_id) from ovc_registration where art_status='ARAR' and child_cbo_id in ({0})".format(ids)
-
-            )
-            row = cursor.fetchone()
-            on_art = row[0]
-
-            cursor.execute(
-                "select  count(person_id) from ovc_registration where  hiv_status = 'HSTN' and child_cbo_id in ({0})".format(ids)
-            )
-            row = cursor.fetchone()
-            ovc_HSTN = row[0]
-            not_on_art = ovc_HSTP - on_art
-
-        except Exception, e:
-            print 'error on dashs - %s' % (str(e))
-
-    return ovc_unknown_count, ovc_HSTN, on_art, not_on_art, ovc_HSTP
-
-
-def get_ovc_hiv_status(request,org_ids):
-    hiv_status={}
-    hiv_status_list_envelop=[]
-    print "The organisation unit {} #".format(org_ids)
-    if request.user.is_superuser:
-        hiv_stats = get_super_user_hiv_dashboard_stats(request,org_ids)
-    else:
-        hiv_stats = get_normal_user_hiv_dashboard_stats(request,org_ids)
-
-    supression = get_hiv_suppression_stats(request,org_ids)
-    hiv_status['ovc_unknown_count'] = hiv_stats[0]
-    hiv_status['ovc_HSTN'] = hiv_stats[1]
-    hiv_status['on_art'] = hiv_stats[2]
-    hiv_status['not_on_art'] = hiv_stats[3]
-    hiv_status['ovc_HSTP'] = hiv_stats[4]
-
-    hiv_status['suppresed'] = supression[0]
-    hiv_status['not_suppresed'] = supression[1]
-
-    # rates %
-    ovc_pos = hiv_status['ovc_HSTP'] if hiv_status['ovc_HSTP'] else 0
-    ovc_art = hiv_status['on_art'] if hiv_status['on_art'] else 0
-    x = float(ovc_art) / float(ovc_pos) * 100  if ovc_pos > 1 else 0
-    hiv_status['on_art_rate'] = "%.2f" % x
-
-    x = float(hiv_status['not_on_art']) / float(ovc_pos) * 100 if ovc_pos > 1 else 0
-    hiv_status['not_on_art_rate'] = "%.2f" % x
-
-    x = float(supression[0]) / float(ovc_art) * 100 if ovc_art > 1 else 0
-    hiv_status['suppresed_rate'] = "%.2f" % x
-
-    x = float(supression[1]) / float(ovc_art) * 100 if ovc_art > 1 else 0
-    hiv_status['not_suppresed_rate'] = "%.2f" % x
-
-    ovc_total = ovc_pos + hiv_status['ovc_HSTN'] + hiv_status['ovc_unknown_count']
-
-    x = float(hiv_status['ovc_HSTP']) / float(ovc_total) * 100 if ovc_total > 1 else 0
-    hiv_status['ovc_HSTP_rate'] = "%.2f" % x
-
-    x = float(hiv_status['ovc_HSTN']) / float(ovc_total) * 100 if ovc_total > 1 else 0
-    hiv_status['ovc_HSTN_rate'] = "%.2f" % x
-
-    x = float(hiv_status['ovc_unknown_count']) / float(ovc_total) * 100 if ovc_total > 1 else 0
-    hiv_status['ovc_unknown_count_rate'] = "%.2f" % x
-
-    hiv_status_list_envelop.append(hiv_status)
-
-    return hiv_status_list_envelop
-
-
-
-def get_ovc_domain_hiv_status(request,org_ids):
-
-    hiv_domain_status = {}
-    hiv_domain_status_list_envelop = []
-    cbos = ""
-    print 'ORG IDS', org_ids
-    try:
-        datas = []
-        # HIVSTAT
-        if len(org_ids) == 1:
-            if org_ids[0] == 0:
-                cbos = "(select child_cbo_id from ovc_registration)"
-            else:
-                cbos = "(%s)" % (org_ids[0])
-        else:
-            cbos = ','.join(str(v) for v in org_ids)
-            cbos= '{}{}{}'.format('(',cbos,')')
-
-        sql = QUERIES['datim_4'].format(**{'cbos': cbos})
-        print sql
-        rows, desc = run_sql_data(None, sql)
-
-        sql2 = QUERIES['datim_5'].format(**{'cbos': cbos})
-        rows2, desc2 = run_sql_data(None, sql2)
-        datas = datas + rows + rows2
-
-        for x in datas:
-            # print i ," ",x['DOMAIN']
-            domain = x['DOMAIN']
-            gender = x['GENDER']
-            if "2a. (i) OVC_HIVSTAT: HIV+" in domain and gender == 'Female':
-                hiv_domain_status['hiv_positive_f'] = x['OVCCOUNT']
-            elif "2a. (ii) OVC_HIVSTAT: HIV+ on ARV" in domain and gender == 'Female':
-                hiv_domain_status['HIV_positive_on_arv_f'] = x['OVCCOUNT']
-            elif "2a. (iii) OVC_HIVSTAT: HIV+ NOT on ARV" in domain and gender == 'Female':
-                hiv_domain_status['HIV_positive_not_on_arv_f'] = x['OVCCOUNT']
-            elif "2b. OVC_HIVSTAT: HIV-" in domain and gender == 'Female':
-                hiv_domain_status['HIV_negative_f'] = x['OVCCOUNT']
-            elif "2c. OVC_HIVSTAT: HIV Status NOT Known" in domain and gender == 'Female':
-                hiv_domain_status['HIV_unknown_status_f'] = x['OVCCOUNT']
-
-            elif "2a. (i) OVC_HIVSTAT: HIV+" in domain and gender == 'Male':
-                hiv_domain_status['hiv_positive_m'] = x['OVCCOUNT']
-            elif "2a. (ii) OVC_HIVSTAT: HIV+ on ARV" in domain and gender == 'Male':
-                hiv_domain_status['HIV_positive_on_arv_m'] = x['OVCCOUNT']
-            elif "2a. (iii) OVC_HIVSTAT: HIV+ NOT on ARV" in domain and gender == 'Male':
-                hiv_domain_status['HIV_positive_not_on_arv_m'] = x['OVCCOUNT']
-            elif "2b. OVC_HIVSTAT: HIV-" in domain and gender == 'Male':
-                hiv_domain_status['HIV_negative_m'] = x['OVCCOUNT']
-            elif "2c. OVC_HIVSTAT: HIV Status NOT Known" in domain and gender == 'Male':
-                hiv_domain_status['HIV_unknown_status_m'] = x['OVCCOUNT']
-            else:
-                pass
-
-        hiv_domain_status_list_envelop.append(hiv_domain_status)
-
-    except Exception, e:
-        print 'datim error - %s' % (str(e))
-        raise e
-    else:
-        return hiv_domain_status_list_envelop
-
-
-def dashboard():
+def dashboard(request):
     """Method to get dashboard totals."""
     try:
         dash = {}
         vals = {'TBVC': 0, 'TBGR': 0, 'TWGE': 0, 'TWNE': 0}
-        person_types = RegPersonsTypes.objects.filter(
-            is_void=False, date_ended=None).values(
-                'person_type_id').annotate(dc=Count('person_type_id'))
-        for person_type in person_types:
-            vals[person_type['person_type_id']] = person_type['dc']
-        dash['children'] = vals['TBVC']
-        dash['guardian'] = vals['TBGR']
-        dash['government'] = vals['TWGE']
-        dash['ngo'] = vals['TWNE']
-        # Get org units
-        org_units = RegOrgUnit.objects.filter(is_void=False).count()
-        dash['org_units'] = org_units
-        # Case records counts
-        case_records = OVCCaseRecord.objects.filter(is_void=False)
-        case_counts = case_records.count()
-        dash['case_records'] = case_counts
-        # Workforce members
-        workforce_members = RegPersonsExternalIds.objects.filter(
-            identifier_type_id='IWKF', is_void=False).count()
-        dash['workforce_members'] = workforce_members
-        # Case categories to find pending cases
-        pending_cases = OVCCaseCategory.objects.filter(
-            is_void=False)
-        pending_count = pending_cases.exclude(
-            case_id__summon_status=True).count()
-        dash['pending_cases'] = pending_count
-        # Child registrations
-        case_regs = {}
+        pr_ouid = int(request.session.get('ou_primary', 0))
+        if request.user.is_superuser or pr_ouid == 2:
+            person_types = RegPersonsTypes.objects.filter(
+                is_void=False, date_ended=None).values(
+                    'person_type_id').annotate(dc=Count('person_type_id'))
+            for person_type in person_types:
+                vals[person_type['person_type_id']] = person_type['dc']
+            dash['children'] = vals['TBVC']
+            dash['guardian'] = vals['TBGR']
+            dash['government'] = vals['TWGE']
+            dash['ngo'] = vals['TWNE']
+            # Get org units
+            org_units = RegOrgUnit.objects.filter(is_void=False).count()
+            dash['org_units'] = org_units
+            # Case categories to find pending cases
+            cases_category = OVCCaseCategory.objects.filter(is_void=False)
+            # Case records counts
+            case_records = OVCCaseRecord.objects.filter(is_void=False)
+            case_counts = cases_category.count()
+            dash['case_records'] = case_counts
+            # Workforce members
+            workforce_members = RegPersonsExternalIds.objects.filter(
+                identifier_type_id='IWKF', is_void=False).count()
+            dash['workforce_members'] = workforce_members
+            # Get pending
+            cases = case_records.filter(case_stage=0).values_list(
+                'case_id', flat=True).distinct()
+            pending_count = cases_category.filter(
+                case_id_id__in=cases).count()
+            dash['pending_cases'] = pending_count
+            # Child registrations
+            ptypes = RegPersonsTypes.objects.filter(
+                person_type_id='TBVC', is_void=False,
+                date_ended=None).values_list('person_id', flat=True)
+            cregs = RegPerson.objects.filter(id__in=ptypes).values(
+                'created_at').annotate(unit_count=Count('created_at'))
+            # Institution Population
+            dash['inst_pop'] = {'B': 0, 'G': 0}
+        else:
+            # Org units
+            cbo_id = request.session.get('ou_primary', 0)
+            cbo_ids = request.session.get('ou_attached', [])
+            print(cbo_ids)
+            org_id = int(cbo_id)
+            org_ids = get_orgs_child(org_id)
+            # Workforce members using Appuser
+            person_orgs = RegPersonsOrgUnits.objects.select_related().filter(
+                org_unit_id__in=org_ids, is_void=False,
+                date_delinked=None).values_list('person_id', flat=True)
+            users = AppUser.objects.filter(
+                reg_person_id__in=person_orgs)
+            user_ids = users.values_list('id', flat=True)
+            print('user ids', user_ids)
+            users_count = users.count()
+            dash['workforce_members'] = users_count
+            person_types = RegPersonsTypes.objects.filter(
+                is_void=False, date_ended=None,
+                person__created_by_id__in=user_ids).values(
+                    'person_type_id').annotate(dc=Count('person_type_id'))
+            for person_type in person_types:
+                vals[person_type['person_type_id']] = person_type['dc']
+            dash['children'] = vals['TBVC']
+            dash['guardian'] = vals['TBGR']
+            dash['government'] = vals['TWGE']
+            dash['ngo'] = vals['TWNE']
+            # Get org units
+            orgs_count = len(org_ids) - 1 if len(org_ids) > 1 else 1
+            dash['org_units'] = orgs_count
+            # Org unit cases
+            case_ids = OVCCaseGeo.objects.select_related().filter(
+                report_orgunit_id__in=org_ids,
+                is_void=False).values_list('case_id_id', flat=True)
+            # Case records counts
+            case_records = OVCCaseRecord.objects.filter(
+                case_id__in=case_ids, is_void=False)
+            # Case categories to find pending cases
+            cases_category = OVCCaseCategory.objects.filter(
+                is_void=False, case_id_id__in=case_ids)
+            case_counts = cases_category.count()
+            dash['case_records'] = case_counts
+            # Get pending
+            cases = case_records.filter(
+                case_stage=0, case_id__in=case_ids).values_list(
+                'case_id', flat=True).distinct()
+            pending_count = cases_category.filter(
+                case_id_id__in=cases).count()
+            dash['pending_cases'] = pending_count
+            # Child registrations
+            ptypes = RegPersonsTypes.objects.filter(
+                person_type_id='TBVC', is_void=False,
+                date_ended=None).values_list('person_id', flat=True)
+            cregs = RegPerson.objects.filter(
+                id__in=ptypes, created_by_id__in=user_ids).values(
+                'created_at').annotate(unit_count=Count('created_at'))
+            # Institution Population
+            inst_pop = {'B': 0, 'G': 0}
+            ou_type = request.session.get('ou_type', None)
+            print('OU TYPE', ou_type)
+            if ou_type:
+                inst_id = request.session.get('ou_primary', 0)
+                ou_attached = request.session.get('ou_attached', 0)
+                print('OU ID', inst_id, ou_attached)
+                inst_pops = OVCPlacement.objects.filter(
+                    residential_institution_name=str(inst_id),
+                    is_active=True, is_void=False).values(
+                    'person__sex_id').annotate(
+                    dcount=Count('person__sex_id'))
+                for ipop in inst_pops:
+                    if str(ipop['person__sex_id']) == 'SFEM':
+                        inst_pop['G'] = ipop['dcount']
+                    else:
+                        inst_pop['B'] = ipop['dcount']
+            dash['inst_pop'] = inst_pop
+        '''
+        cregs = RegPerson.objects.filter(designation='COVC').values(
+            'created_at').annotate(unit_count=Count('created_at'))
+        '''
+        # OVC
+        oregs = OVCRegistration.objects.values(
+            'registration_date').annotate(
+            unit_count=Count('registration_date'))
+        child_regs, case_regs, ovc_regs = {}, {}, {}
+        for creg in cregs:
+            the_date = creg['created_at']
+            # cdate = '1900-01-01'
+            cdate = the_date.strftime('%d-%b-%y')
+            child_regs[str(cdate)] = creg['unit_count']
+        for oreg in oregs:
+            the_date = oreg['registration_date']
+            cdate = the_date.strftime('%d-%b-%y')
+            ovc_regs[str(cdate)] = oreg['unit_count']
         # Case Records
         ovc_regs = case_records.values(
             'date_case_opened').annotate(unit_count=Count('date_case_opened'))
@@ -326,13 +176,15 @@ def dashboard():
             cdate = the_date.strftime('%d-%b-%y')
             case_regs[str(cdate)] = ovc_reg['unit_count']
         # Case categories Top 5
-        case_categories = pending_cases.values(
+        case_categories = cases_category.values(
             'case_category').annotate(unit_count=Count(
                 'case_category')).order_by('-unit_count')
+        dash['child_regs'] = child_regs
+        dash['ovc_regs'] = ovc_regs
         dash['case_regs'] = case_regs
         dash['case_cats'] = case_categories
-    except Exception, e:
-        print 'error with dash - %s' % (str(e))
+    except Exception as e:
+        print('error with dash - %s' % (str(e)))
         dash = {}
         dash['children'] = 0
         dash['guardian'] = 0
@@ -342,8 +194,12 @@ def dashboard():
         dash['case_records'] = 0
         dash['workforce_members'] = 0
         dash['pending_cases'] = 0
+        dash['child_regs'] = []
+        dash['ovc_regs'] = []
         dash['case_regs'] = []
         dash['case_cats'] = 0
+        # Institution Population
+        dash['inst_pop'] = {'B': 0, 'G': 0}
         return dash
     else:
         return dash
@@ -353,8 +209,6 @@ def ovc_dashboard(request):
     """Method to get dashboard totals."""
     try:
         dash = {}
-        today = datetime.now()
-        start_date = today - timedelta(days=30)
         vals = {'TBVC': 0, 'TBGR': 0, 'TWGE': 0, 'TWNE': 0}
         person_types = RegPersonsTypes.objects.filter(
             is_void=False, date_ended=None).values(
@@ -365,18 +219,12 @@ def ovc_dashboard(request):
         dash['guardian'] = vals['TBGR']
         dash['government'] = vals['TWGE']
         dash['ngo'] = vals['TWNE']
-        # OVC Filters
-        cbo_id = request.session.get('ou_primary', 0)
-        cbo_ids = request.session.get('ou_attached', [])
-        reg_ovc = request.session.get('reg_ovc', 0)
-        # Case records
-        case_records = OVCCaseRecord.objects.filter(
-            date_case_opened__gte=start_date, is_void=False)
+        case_records = OVCCaseRecord.objects.filter(is_void=False)
         case_counts = case_records.count()
         dash['case_records'] = case_counts
         # Case categories to find pending cases
         pending_cases = OVCCaseCategory.objects.filter(
-            date_of_event__gte=start_date, is_void=False)
+            is_void=False)
         pending_count = pending_cases.exclude(
             case_id__summon_status=True).count()
         dash['pending_cases'] = pending_count
@@ -384,44 +232,40 @@ def ovc_dashboard(request):
         ptypes = RegPersonsTypes.objects.filter(
             person_type_id='TBVC', is_void=False,
             date_ended=None).values_list('person_id', flat=True)
-        # All linked CBOS
+        cregs = RegPerson.objects.filter(id__in=ptypes).values(
+            'created_at').annotate(unit_count=Count('created_at'))
+        '''
+        cregs = RegPerson.objects.filter(designation='COVC').values(
+            'created_at').annotate(unit_count=Count('created_at'))
+        '''
+        # OVC
+        cbo_id = request.session.get('ou_primary', 0)
+        cbo_ids = request.session.get('ou_attached', [])
+        # print cbo_ids
         org_id = int(cbo_id)
         org_ids = get_orgs_child(org_id)
-        print 'dash orgs', org_ids
-        dash['hiv_status'] = get_ovc_hiv_status(request, org_ids)
-        dash['domain_hiv_status'] = get_ovc_domain_hiv_status(request, org_ids)
-
+        print('dash orgs', org_ids)
         # Get org units
         orgs_count = len(org_ids) - 1 if len(org_ids) > 1 else 1
         dash['org_units'] = orgs_count
         # Case records counts
+        # Appuser
         person_orgs = RegPersonsOrgUnits.objects.select_related().filter(
             org_unit_id__in=org_ids, is_void=False,
             date_delinked=None).values_list('person_id', flat=True)
         users_count = AppUser.objects.filter(
             reg_person_id__in=person_orgs).count()
         dash['workforce_members'] = users_count
-        # For OVC
+        if cbo_ids:
+            cbos_list = [int(cbo_str) for cbo_str in cbo_ids.split(',')]
+            org_ids = org_ids + cbos_list
+        oregs = OVCRegistration.objects.values(
+            'registration_date').annotate(
+            unit_count=Count('registration_date'))
         child_regs, case_regs, ovc_regs = {}, {}, {}
-        if request.user.is_superuser:
-            regs = OVCRegistration.objects.filter(is_void=False)
-        else:
-            regs = OVCRegistration.objects.filter(
-                is_void=False, child_cbo_id__in=org_ids)
-        # Default values for IP summary
-        am, af, em, ef, sm, sf, gm, gf = 0, 0, 0, 0, 0, 0, 0, 0
-        # Get guardians
-        guardian_genders = regs.values('caretaker__sex_id').annotate(
-            total=Count('caretaker_id', distinct=True)).order_by('total')
-        for gs in guardian_genders:
-            g_gender = gs['caretaker__sex_id']
-            g_count = gs['total']
-            if g_gender:
-                gg = str(g_gender)
-                if gg == 'SMAL':
-                    gm = g_count
-                else:
-                    gf = g_count
+        regs = OVCRegistration.objects.filter(
+            is_void=False, child_cbo_id__in=org_ids)
+        # Get guaridans
         guardian_count = regs.values('caretaker_id').distinct().count()
         dash['guardian'] = guardian_count
         # Get households
@@ -429,65 +273,9 @@ def ovc_dashboard(request):
         hh_count = OVCHHMembers.objects.filter(
             person_id__in=child_ids).values(
             'house_hold_id').distinct().count()
-        if cbo_ids:
-            cbos_list = [int(cbo_str) for cbo_str in cbo_ids.split(',')]
-            org_ids = org_ids + cbos_list
-        if request.user.is_superuser:
-            oregs = OVCRegistration.objects.filter(
-                registration_date__gte=start_date).values(
-                'registration_date').annotate(
-                unit_count=Count('registration_date'))
-            cregs = RegPerson.objects.filter(
-                created_at__gte=start_date, id__in=ptypes).values(
-                'created_at').annotate(unit_count=Count('created_at'))
-        else:
-            oregs = OVCRegistration.objects.filter(
-                child_cbo_id__in=org_ids,
-                registration_date__gte=start_date).values(
-                'registration_date').annotate(
-                unit_count=Count('registration_date'))
-            # Child registrations
-            cregs = RegPerson.objects.filter(
-                created_at__gte=start_date, id__in=ptypes)
-            if reg_ovc:
-                cregs = cregs.filter(id__in=child_ids)
-            cregs = cregs.values('created_at').annotate(
-                unit_count=Count('created_at'))
         dash['household'] = hh_count
         sqs = regs.values('is_active').annotate(
             total=Count('is_active')).order_by('total')
-        # Get breakdown by Genders
-        ovc_cls = regs.values(
-            'is_active', 'person__sex_id').annotate(
-            total=Count('person__sex_id')).order_by('total')
-        ovc_schs = regs.filter(is_active=True).exclude(
-            school_level='SLNS').values(
-            'person__sex_id').annotate(
-            total=Count('person__sex_id')).order_by('total')
-        for ovc_sch in ovc_schs:
-            child = ovc_sch['total']
-            ovc_sex = str(ovc_sch['person__sex_id'])
-            if ovc_sex == 'SMAL':
-                sm = child
-            else:
-                sf = child
-        for ovc_cl in ovc_cls:
-            child = ovc_cl['total']
-            status = ovc_cl['is_active']
-            ovc_sex = str(ovc_cl['person__sex_id'])
-            if status:
-                if ovc_sex == 'SMAL':
-                    am = child
-                else:
-                    af = child
-            else:
-                if ovc_sex == 'SMAL':
-                    em = child
-                else:
-                    ef = child
-        ovc_summ = {'m0': em + am, 'm1': am, 'm2': sm, 'm3': 0,
-                    'm4': gm, 'f0': ef + af, 'f1': af,
-                    'f2': sf, 'f3': 0, 'f4': gf}
         # Person types
         exited_ovc, active_child = 0, 0
         for sq in sqs:
@@ -507,44 +295,15 @@ def ovc_dashboard(request):
             the_date = oreg['registration_date']
             cdate = the_date.strftime('%d-%b-%y')
             ovc_regs[str(cdate)] = oreg['unit_count']
-        # Case Records / OVC Services
-        svm, svf = 0, 0
-        if reg_ovc or request.user.is_superuser:
-            ovc_serv_all = OVCCareServices.objects.filter(
-                event__event_type_id='FSAM', is_void=False,
-                event__date_of_event__gte=start_date,
-                event__person_id__in=child_ids)
-            ovc_servs = ovc_serv_all.values(
-                'event__date_of_event').annotate(
-                unit_count=Count('event__date_of_event'))
-            # Served by gender
-            ovc_servgs = ovc_serv_all.values(
-                'event__person__sex_id').annotate(
-                gender_count=Count('event__person_id', distinct=True))
-            for oserv in ovc_servgs:
-                sgender = str(oserv['event__person__sex_id'])
-                child = oserv['gender_count']
-                if sgender == 'SMAL':
-                    svm = child
-                else:
-                    svf = child
-            for ovc_serv in ovc_servs:
-                the_date = ovc_serv['event__date_of_event']
-                cdate = the_date.strftime('%d-%b-%y')
-                case_regs[str(cdate)] = ovc_serv['unit_count']
-        else:
-            ovc_case_regs = case_records.values(
-                'date_case_opened').annotate(
-                unit_count=Count('date_case_opened'))
-            for ovc_reg in ovc_case_regs:
-                the_date = ovc_reg['date_case_opened']
-                cdate = the_date.strftime('%d-%b-%y')
-                case_regs[str(cdate)] = ovc_reg['unit_count']
-        ovc_summ['m3'] = svm
-        ovc_summ['f3'] = svf
-        dash['ovc_summary'] = ovc_summ
+        # Case Records
+        ovc_regs = case_records.values(
+            'date_case_opened').annotate(unit_count=Count('date_case_opened'))
+        for ovc_reg in ovc_regs:
+            the_date = ovc_reg['date_case_opened']
+            # cdate = '1900-01-01'
+            cdate = the_date.strftime('%d-%b-%y')
+            case_regs[str(cdate)] = ovc_reg['unit_count']
         # Case categories Top 5
-
         cases = OVCEligibility.objects.filter(
             person_id__in=child_ids)
         case_criteria = cases.values(
@@ -555,8 +314,8 @@ def ovc_dashboard(request):
         dash['case_regs'] = case_regs
         dash['case_cats'] = {}
         dash['criteria'] = case_criteria
-    except Exception, e:
-        print 'error - %s' % (str(e))
+    except Exception as e:
+        print('error - %s' % (str(e)))
         dash = {}
         dash['children'] = 0
         dash['children_all'] = 0
@@ -573,7 +332,6 @@ def ovc_dashboard(request):
         dash['case_cats'] = 0
         dash['household'] = 0
         dash['criteria'] = {}
-        dash['ovc_summary'] = {}
         return dash
     else:
         return dash
@@ -582,15 +340,16 @@ def ovc_dashboard(request):
 def get_unit_parent(org_ids):
     """Method to do the organisation tree."""
     try:
+        print(org_ids)
         orgs = []
         orgs_qs = RegOrgUnit.objects.filter(
             is_void=False,
             parent_org_unit_id__in=org_ids).values_list('id', flat=True)
-        print 'Check Org Unit level - %s' % (str(orgs))
+        print('Check Org Unit level - %s' % (str(orgs)))
         if orgs_qs:
             orgs = [org for org in orgs_qs]
     except Exception as e:
-        print 'No parent unit - %s' % (str(e))
+        print('No parent unit - %s' % (str(e)))
         return []
     else:
         return orgs
@@ -605,19 +364,19 @@ def get_orgs_child(org_id, m=0):
             child_units = [int(org_id)]
         p_orgs_3, p_orgs_2, p_orgs_1 = [], [], []
         parent_orgs = get_unit_parent(child_units)
-        print 'c1', child_units, parent_orgs
+        print('c1', child_units, parent_orgs)
         if parent_orgs:
             p_orgs_1 = get_unit_parent(parent_orgs)
-            print 'c2', child_units
+            print('c2', child_units)
             if p_orgs_1:
                 p_orgs_2 = get_unit_parent(p_orgs_1)
-                print 'c3'
+                # print 'c3'
                 if p_orgs_2:
                     p_orgs_3 = get_unit_parent(p_orgs_2)
-                    print 'c4'
+                    # print 'c4'
         all_units = child_units + parent_orgs + p_orgs_1 + p_orgs_2 + p_orgs_3
     except Exception as e:
-        print 'error with tree - %s' % (str(e))
+        print('error with tree - %s' % (str(e)))
         return []
     else:
         return all_units
@@ -632,7 +391,7 @@ def save_household(index_child, members):
         OVCHouseHold(index_child_id=index_child,
                      members=hh_members).save()
     except Exception as e:
-        print 'error creating household - %s ' % (str(e))
+        print('error creating household - %s ' % (str(e)))
         pass
 
 
@@ -641,8 +400,8 @@ def get_ovc_lists(ovc_ids):
     try:
         ovc_details = OVCRegistration.objects.filter(
             person_id__in=ovc_ids, is_void=False)
-    except Exception, e:
-        print 'error getting ovc lists - %s' % (str(e))
+    except Exception as e:
+        print('error getting ovc lists - %s' % (str(e)))
         return {}
     else:
         return ovc_details
@@ -662,7 +421,7 @@ def get_index_child(child_id):
         for sibling in siblings:
             index_id = sibling.child_person_id
     except Exception as e:
-        print 'error getting index child - %s' % (str(e))
+        print('error getting index child - %s' % (str(e)))
         return 0
     else:
         return index_id
@@ -674,21 +433,22 @@ def get_household(chid):
         child_id = ',%s,' % (chid)
         child_index, cids = 0, []
         child_ids = []
+        print('CHID', child_id)
         members = OVCHouseHold.objects.filter(
             index_child_id=chid)
         if not members:
-            print 'no mm'
+            # print 'no mm'
             members = OVCHouseHold.objects.filter(
                 members__contains=child_id)
         for member in members:
             cids = member.members.split(',')
             child_index = member.index_child_id
-        print 'NN', cids, child_index
+        print('NN', cids, child_index)
         for cid in cids:
             if cid:
                 child_ids.append(int(cid))
     except Exception as e:
-        print 'error getting household - %s ' % (str(e))
+        print('error getting household - %s ' % (str(e)))
         return 0, []
     else:
         return child_index, child_ids
@@ -869,8 +629,7 @@ def get_user_geos(user):
 def get_user_details(person):
     """Method to get account user details."""
     try:
-        person_appuser = AppUser.objects.get(
-            reg_person=person, is_active=True)
+        person_appuser = AppUser.objects.get(reg_person=person)
         return person_appuser
     except Exception, e:
         print "Get user details error - %s" % (str(e))
@@ -1216,66 +975,40 @@ def auto_suggest_person(request, query, qid=0):
         results = []
         person_type = 'TBGR'
         query_id = int(request.GET.get('id'))
-        reg_ovc = request.session.get('reg_ovc', 0)
-        cbo_id = request.session.get('ou_primary', 0)
-        cbo_ids = request.session.get('ou_attached', [])
-        # All linked CBOS
-        org_id = int(cbo_id)
-        org_ids = get_orgs_child(org_id)
-        if cbo_ids:
-            cbos_list = [int(cbo_str) for cbo_str in cbo_ids.split(',')]
-            org_ids = org_ids + cbos_list
         # Get the filter ids
         query_ids = {0: 'TBGR', 1: 'TBVC', 2: 'IWKF'}
         detail_list = [0, 1]
         if query_id in query_ids:
             person_type = query_ids[query_id]
         # Filter by same org units
-        # ous = get_attached_ous(request)
-        # print 'ou', ous
-        tstring = str(query)
-        qstring = unicode(tstring)
-        psearch = tstring if qstring.isnumeric() else False
-        print 'ID search', psearch
+        ous = get_attached_ous(request)
+        print 'ou', ous
+        porgs = RegPersonsOrgUnits.objects.filter(
+            org_unit_id__in=ous).values_list('person_id', flat=True)
+        # Filters for external ids
+        if query_id in detail_list:
+            person_ids = RegPersonsTypes.objects.filter(
+                person_type_id=person_type,
+                is_void=False).values_list(
+                    'person_id', flat=True)
+            #  person_id__in=porgs,
+        else:
+            wf_ids = ['TWNE', 'TWGE', 'TWVL']
+            person_ids = RegPersonsTypes.objects.filter(
+                person_type_id__in=wf_ids, person_id__in=porgs,
+                is_void=False).values_list(
+                    'person_id', flat=True)
+        queryset = RegPerson.objects.filter(
+            id__in=person_ids, is_void=False)
+        field_names = ['surname', 'email', 'first_name', 'other_names']
+        q_filter = Q()
+        for field in field_names:
+            q_filter |= Q(**{"%s__icontains" % field: query})
+        persons = queryset.filter(q_filter)
         # Get IDS
         ext_ids = {}
-        if psearch:
-            pids = RegPersonsExternalIds.objects.filter(
-                identifier=psearch, identifier_type_id='INTL',
-                is_void=False)
-            person_list = pids.values_list('person_id', flat=True)
-            persons = RegPerson.objects.filter(
-                id__in=person_list, is_void=False)
-        else:
-            porgs = RegPersonsOrgUnits.objects.filter(
-                org_unit_id__in=org_ids).values_list('person_id', flat=True)
-            # Filters for external ids
-            if query_id in detail_list:
-                if reg_ovc:
-                    person_ids = RegPersonsTypes.objects.filter(
-                        person_type_id=person_type, person_id__in=porgs,
-                        is_void=False).values_list(
-                            'person_id', flat=True)
-                else:
-                    person_ids = RegPersonsTypes.objects.filter(
-                        person_type_id=person_type,
-                        is_void=False).values_list(
-                            'person_id', flat=True)
-            else:
-                wf_ids = ['TWNE', 'TWGE', 'TWVL']
-                person_ids = RegPersonsTypes.objects.filter(
-                    person_type_id__in=wf_ids, person_id__in=porgs,
-                    is_void=False).values_list(
-                        'person_id', flat=True)
-            queryset = RegPerson.objects.filter(
-                id__in=person_ids, is_void=False)
-            field_names = ['surname', 'email', 'first_name', 'other_names']
-            q_filter = Q()
-            for field in field_names:
-                q_filter |= Q(**{"%s__icontains" % field: query})
-            persons = queryset.filter(q_filter)
-            pids = RegPersonsExternalIds.objects.filter(
-                person_id__in=person_ids, identifier_type_id='INTL')
+        pids = RegPersonsExternalIds.objects.filter(
+            person_id__in=person_ids, identifier_type_id='INTL')
         for pid in pids:
             ext_ids[pid.person_id] = pid.identifier
         for person in persons:
@@ -1536,6 +1269,8 @@ def get_geo_selected(results, datas, extras, filters=False):
             wards.append(extra_list)
     unique_wards = list(set(wards))
     results['wards'] = unique_wards
+    results['locations'] = unique_wards
+    results['sub_locations'] = unique_wards
     return results
 
 
@@ -1865,73 +1600,754 @@ def check_duplicate(person_uid):
         return person
 
 
-def search_person_ft(request, search_string, ptype, incl_dead):
-    """Method to search for persons."""
+def search_person_name(request, name, person_type=''):
+    """Method to search for child."""
     try:
         cids = []
-        reg_ovc = request.session.get('reg_ovc', 0)
-        names = search_string.split()
-        person_type = str(ptype)
-        p_type = person_type
-        other_filter = ''
-        if person_type == 'TBVC':
-            person_type = 'COVC'
-            other_filter = "OR designation = 'TBVC'"
-        if p_type == 'TBVC':
-            query = ("SELECT id FROM reg_person WHERE to_tsvector"
-                     "(first_name || ' ' || surname || ' '"
-                     " || COALESCE(other_names,''))"
-                     " @@ to_tsquery('english', '%s') AND (designation = '%s'%s)"
-                     " ORDER BY date_of_birth DESC")
-            vals = ' & '.join(names)
-            sql = query % (vals, person_type, other_filter)
-        else:
-            # Other than OVC
-            query = ("SELECT reg_person.id as id FROM reg_person INNER JOIN reg_persons_types "
-                     " ON reg_person.id=person_id AND person_type_id = '%s' WHERE to_tsvector"
-                     "(first_name || ' ' || surname || ' '"
-                     " || COALESCE(other_names,''))"
-                     " @@ to_tsquery('english', '%s') "
-                     " ORDER BY date_of_birth DESC")
-            vals = ' & '.join(names)
-            sql = query % (p_type, vals)
-        print sql
+        names = name.split()
+        query = ("SELECT id FROM reg_person WHERE to_tsvector"
+                 "(first_name || ' ' || surname || ' ' || other_names)"
+                 " @@ to_tsquery('%s') AND designation = '%s'"
+                 " ORDER BY date_of_birth DESC")
+        vals = ' & '.join(names)
+        sql = query % (vals, person_type)
+        print(sql)
         with connection.cursor() as cursor:
             cursor.execute(sql)
-            rows = cursor.fetchall()
-            cids = [r[0] for r in rows]
-        qs = RegPerson.objects.filter(is_void=False, id__in=cids)
-        if reg_ovc and person_type == 'COVC':
-            cbo_ovcs = get_org_ovcs(request)
-            qs = qs.filter(id__in=cbo_ovcs)
+            row = cursor.fetchall()
+            cids = [r[0] for r in row]
     except Exception as e:
-        print 'error doing fts search - %s' % (str(e))
+        print 'Error querying person - %s' % (str(e))
         return []
     else:
-        return qs
+        return cids
 
 
-def get_org_ovcs(request):
-    """Get children for the Org unit."""
+def get_dashboard_items(request, did, item_id):
+    """Method to get individual dashboard details."""
     try:
-        # OVC Filters
-        cbo_id = request.session.get('ou_primary', 0)
-        cbo_ids = request.session.get('ou_attached', [])
-        # All linked CBOS
-        org_id = int(cbo_id)
-        org_ids = get_orgs_child(org_id)
-        if cbo_ids:
-            cbos_list = [int(cbo_str) for cbo_str in cbo_ids.split(',')]
-            org_ids = org_ids + cbos_list
-        if request.user.is_superuser:
-            regs = OVCRegistration.objects.filter(is_void=False)
-        else:
-            regs = OVCRegistration.objects.filter(
-                is_void=False, child_cbo_id__in=org_ids)
-        # Get OVC ids
-        child_ids = regs.values_list('person_id', flat=True)
+        dts = {}
+        dtls = ['is_void', 'sync_id', 'id']
+        fn = ['case_category_id', 'risk_level_id', 'court_order_id',
+              'referral_type_id', 'perpetrator_status_id', 'yesno_id',
+              'case_reporter_id', 'sex_id', 'relationship_type_id',
+              'referral_destination_id', 'closure_outcome_id',
+              'referral_destination_classification', 'period_id',
+              'admission_reason_id', 'admission_type_id',
+              'intervention_id']
+        vals = get_dict(field_name=fn)
+        if did == 'CG' or did == 'CH':
+            data = RegPerson.objects.filter(id=item_id).values()[0]
+        if did == 'OU':
+            data = RegOrgUnit.objects.filter(id=item_id).values()[0]
+        if did == 'WF':
+            data = AppUser.objects.filter(id=item_id).values()[0]
+            del data['password']
+        if did == 'CR' or did == 'PC':
+            data = OVCCaseRecord.objects.filter(case_id=item_id).values()[0]
+        if did == 'SM':
+            data = OVCCaseEventSummon.objects.filter(
+                summon_id=item_id).values()[0]
+        if did == 'CO':
+            data = OVCCaseEventCourt.objects.filter(
+                court_session_id=item_id).values()[0]
+        if did == 'RF':
+            data = OVCReferral.objects.filter(
+                refferal_id=item_id).values()[0]
+        if did == 'TR':
+            data = OVCCaseEventClosure.objects.filter(
+                closure_id=item_id).values()[0]
+        if did == 'IP':
+            data = OVCPlacement.objects.filter(
+                is_void=False, pk=item_id).values()[0]
+            # data['Org_Unit'] = data.residential_institution.org_unit
+        if did == 'IN':
+            data = OVCCaseEventServices.objects.filter(
+                is_void=False, pk=item_id).values()[0]
+        for dt in data:
+            if data[dt] is not None and data[dt] != '' and dt not in dtls:
+                dval = vals[data[dt]] if data[dt] in vals else data[dt]
+                if dt == 'created_by':
+                    dval = get_person(dval)
+                if dt == 'person_id':
+                    dts['CPIMS ID'] = dval
+                    dval, dt = get_person(dval, 2), 'Person'
+                if isinstance(dval, (bool)):
+                    dval = 'Yes' if dval else 'No'
+                dts[dt.replace('_', ' ').capitalize()] = dval
+        datas = collections.OrderedDict(sorted(dts.items()))
     except Exception as e:
-        print 'Get getting Org OVCs - %s' % (str(e))
+        raise e
+    else:
+        return datas
+
+
+def get_dashboards(request, did, org_ids):
+    """Method to get dashboard."""
+    try:
+        res, case_ids = [], []
+        print('Get dashboard - %s %s' % (did, org_ids))
+        caseids = OVCCaseGeo.objects.select_related().filter(
+            report_orgunit_id__in=org_ids,
+            is_void=False).values_list('case_id_id', flat=True)
+        # Get all cases transfered to this Org Unit
+        transfers = OVCCaseEventClosure.objects.filter(
+            transfer_to_id__in=org_ids, is_void=False).values_list(
+            'case_event_id__case_id_id', flat=True)
+        for cid in caseids:
+            case_ids.append(cid)
+        for cid in transfers:
+            case_ids.append(cid)
+        if did == 'SM':
+            datas = OVCCaseEventSummon.objects.filter(
+                case_event_id__case_id_id__in=case_ids,
+                is_void=False).exclude(
+                summon_date__isnull=True).order_by("-summon_date")[:1000]
+            for data in datas:
+                risks = {'RLHG': 'High', 'RLMD': 'Medium', 'RLLW': 'Low'}
+                risk = data.case_event_id.case_id.risk_level
+                serial = data.case_event_id.case_id.case_serial
+
+                risk_level = '%s' % (risks[risk] if risk in risks else risk)
+                pobj = data.case_event_id.case_id.person
+                name = '%s %s %s' % (pobj.first_name, pobj.surname,
+                                     pobj.other_names)
+                sex_id = data.case_event_id.case_id.person.sex_id
+                sex = 'Female' if sex_id == 'SFEM' else 'Male'
+                v_age = data.case_event_id.case_id.person.age
+                age = v_age if v_age else 'DOB Not Provided'
+                names = '%s, %s, %s' % (name.strip(), sex, age)
+                itm = '%s - %s (%s)' % (serial, names, risk_level)
+                vls = {'item': itm,
+                       'date': data.summon_date, 'count': 1,
+                       'item_id': data.summon_id}
+                res.append(vls)
+        if did == 'CO':
+            vals = get_dict(field_name=['court_order_id'])
+            courts = OVCCaseEventCourt.objects.filter(
+                is_void=False, case_event_id__case_id_id__in=case_ids).exclude(
+                court_order__isnull=True).order_by("-timestamp_created")[:1000]
+            for data in courts:
+                risks = {'RLHG': 'High', 'RLMD': 'Medium', 'RLLW': 'Low'}
+                risk = data.case_event_id.case_id.risk_level
+                serial = data.case_event_id.case_id.case_serial
+                risk_level = '%s' % (risks[risk] if risk in risks else risk)
+                pobj = data.case_event_id.case_id.person
+                name = '%s %s %s' % (pobj.first_name, pobj.surname,
+                                     pobj.other_names)
+                sex_id = data.case_event_id.case_id.person.sex_id
+                sex = 'Female' if sex_id == 'SFEM' else 'Male'
+                v_age = data.case_event_id.case_id.person.age
+                age = v_age if v_age else 'DOB Not Provided'
+                names = '%s, %s' % (name.strip(), sex)
+                corder = data.court_order
+                court_order = vals[corder] if corder in vals else corder
+                itm = '%s - %s (%s)' % (court_order, serial, names)
+                vls = {'item': itm,
+                       'date': data.timestamp_created, 'count': 1,
+                       'item_id': data.court_session_id}
+                res.append(vls)
+        if did == 'RF':
+            vals = get_dict(field_name=['referral_type_id'])
+            referrals = OVCReferral.objects.filter(
+                is_void=False,
+                case_id_id__in=case_ids).order_by("-refferal_startdate")[:1000]
+            for data in referrals:
+                risks = {'RLHG': 'High', 'RLMD': 'Medium', 'RLLW': 'Low'}
+                risk = data.case_id.risk_level
+                serial = data.case_id.case_serial
+                refs = data.refferal_to
+                cref = vals[refs] if refs in vals else refs
+                rlevel = '%s Risk' % (risks[risk] if risk in risks else risk)
+                itm = '%s - %s (%s)' % (cref, serial, rlevel)
+                vls = {'item': itm, 'count': 1,
+                       'date': data.refferal_startdate,
+                       'item_id': data.refferal_id}
+                res.append(vls)
+        if did == 'TR':
+            vals = get_dict(field_name=['referral_type_id'])
+            transfers = OVCCaseEventClosure.objects.filter(
+                case_event_id__case_id_id__in=case_ids,
+                is_void=False, transfer_to__isnull=False).order_by(
+                "-date_of_case_closure")[:1000]
+            for data in transfers:
+                risks = {'RLHG': 'High', 'RLMD': 'Medium', 'RLLW': 'Low'}
+                risk = data.case_event_id.case_id.risk_level
+                serial = data.case_event_id.case_id.case_serial
+                refs = data.transfer_to
+                cref = vals[refs] if refs in vals else refs
+                rlevel = '%s Risk' % (risks[risk] if risk in risks else risk)
+                itm = '%s - %s (%s)' % (cref, serial, rlevel)
+                vls = {'item': itm, 'count': 1,
+                       'date': data.date_of_case_closure,
+                       'item_id': data.closure_id}
+                res.append(vls)
+        if did == 'WF':
+            porgs = RegPersonsOrgUnits.objects.select_related().filter(
+                org_unit_id__in=org_ids, is_void=False, date_delinked=None)
+            person_orgs = porgs.values_list('person_id', flat=True)
+            users = AppUser.objects.filter(reg_person_id__in=person_orgs)
+            user_ids = users.values_list('id', flat=True)
+            for user in users:
+                last_login = 'Inactive from %s' % (user.last_login)
+                status = 'Active' if user.is_active else last_login
+                itm = '%s (%s)' % (user.username, status)
+                vls = {'item': itm,
+                       'date': user.timestamp_created, 'count': 'N/A',
+                       'item_id': user.id}
+                res.append(vls)
+        if did == 'CH' or did == 'CG':
+            porgs = RegPersonsOrgUnits.objects.select_related().filter(
+                org_unit_id__in=org_ids, is_void=False, date_delinked=None)
+            person_orgs = porgs.values_list('person_id', flat=True)
+            users = AppUser.objects.filter(reg_person_id__in=person_orgs)
+            user_ids = users.values_list('id', flat=True)
+            person_types = RegPersonsTypes.objects.filter(
+                is_void=False, date_ended=None,
+                person__created_by_id__in=user_ids).order_by(
+                    "-person__created_at")[:100]
+            for person_type in person_types:
+                sex_id = person_type.person.sex_id
+                sex = 'Female' if sex_id == 'SFEM' else 'Male'
+                v_age = person_type.person.age
+                age = v_age if v_age else 'DOB Not Provided'
+                onames = person_type.person.other_names
+                oname = onames if onames else ''
+                name = '%s %s %s' % (person_type.person.first_name,
+                                     person_type.person.surname,
+                                     oname)
+                itm = '%s (%s, %s)' % (name.strip(), sex, age)
+                if did == 'CH' and person_type.person_type_id == 'TBVC':
+                    vls = {'item': itm, 'count': 'N/A',
+                           'date': person_type.person.created_at,
+                           'item_id': person_type.person.id}
+                    res.append(vls)
+                elif did == 'CG' and person_type.person_type_id == 'TBGR':
+                    vls = {'item': itm, 'count': 'N/A',
+                           'date': person_type.person.created_at,
+                           'item_id': person_type.person.id}
+                    res.append(vls)
+        if did == 'CR' or did == 'PC':
+            cases = OVCCaseCategory.objects.select_related().filter(
+                case_id_id__in=case_ids, is_void=False)
+            if did == 'PC':
+                case_records = OVCCaseRecord.objects.filter(
+                    case_id__in=case_ids, is_void=False)
+                # Get pending
+                cases_pending = case_records.filter(
+                    case_stage=0, case_id__in=case_ids).values_list(
+                    'case_id', flat=True).distinct()
+                cases = cases.filter(case_id_id=cases_pending)
+            cases = cases.order_by("-case_id__date_case_opened")[:1000]
+            for case in cases:
+                onames = case.case_id.person.other_names
+                oname = onames if onames else ''
+                name = '%s %s %s' % (case.case_id.person.first_name,
+                                     case.case_id.person.surname,
+                                     oname)
+                sex_id = case.case_id.person.sex_id
+                sex = 'Female' if sex_id == 'SFEM' else 'Male'
+                v_age = case.case_id.person.age
+                age = v_age if v_age else 'DOB Not Provided'
+                names = '%s, %s, %s' % (name.strip(), sex, age)
+                itm = '%s (%s)' % (case.case_id.case_serial, names)
+                status = str(case.case_id.case_status)
+                dt = case.case_id.date_case_opened
+                vls = {'item': itm, 'date': dt,
+                       'count': status, 'item_id': case.case_id_id}
+                res.append(vls)
+        if did == 'IP':
+            org_id = str(org_ids[0])
+            vals = get_dict(field_name=['admission_type_id'])
+            placements = OVCPlacement.objects.filter(
+                residential_institution_name=org_id,
+                is_void=False).order_by('-admission_date')
+            for case in placements:
+                names = '%s %s' % (case.person.first_name, case.person.surname)
+                sex_id = case.person.sex_id
+                adm_type = case.admission_type
+                adm = vals[adm_type] if adm_type in vals else adm_type
+                sex = 'Female' if sex_id == 'SFEM' else 'Male'
+                status = 'Active' if case.is_active else 'Discharged'
+                v_age = case.person.age
+                age = v_age if v_age else 'DOB Not Provided'
+                itm = '%s, %s, %s (%s)' % (names.strip(), sex, age, adm)
+                vls = {'item': itm, 'date': case.admission_date,
+                       'count': status, 'item_id': case.pk}
+                res.append(vls)
+        if did == 'IN':
+            vals = get_dict(field_name=['intervention_id'])
+            interventions = OVCCaseEventServices.objects.filter(
+                is_void=False, case_event_id__case_id_id__in=case_ids,
+                service_provider='EXIT')[:1000]
+            for case in interventions:
+                intv = case.service_provided
+                outcome = vals[intv] if intv in vals else intv
+                pobj = case.case_event_id.case_id.person
+                case_serial = case.case_event_id.case_id.case_serial
+                itm = '%s (%s)' % (case_serial, outcome)
+                vls = {'item': itm, 'date': case.date_of_encounter_event,
+                       'count': 'N/A', 'item_id': case.pk}
+                res.append(vls)
+    except Exception as e:
+        print 'error - %s' % (str(e))
         return []
     else:
-        return child_ids
+        return res
+
+
+def query_admin_regs(request, did, start_date):
+    """Method for db queries."""
+    try:
+        cts = {}
+        dates = []
+        if did == 'CH' or did == 'CG':
+            pt_id = 'TBVC' if did == 'CH' else 'TBGR'
+            person_types = RegPersonsTypes.objects.filter(
+                is_void=False, date_began__gte=start_date,
+                person_type_id=pt_id).extra(
+                {'month': "Extract(month from date_began)",
+                 'year': "Extract(year from date_began)"}).values(
+                'month', 'person__sex_id', 'year').annotate(
+                Count('person_id')).order_by('-year', '-month')
+            for pt in person_types:
+                mn = pt['month']
+                gender = pt['person__sex_id']
+                pops = pt['person_id__count']
+                year = int(pt['year'])
+                mon = calendar.month_abbr[int(mn)]
+                tarehe = '%s-%s-01' % (year, mon)
+                if tarehe not in dates:
+                    dates.append(tarehe)
+                if mon not in cts:
+                    cts[mon] = {'name': mon, 'year': year,
+                                'boys': 0, 'girls': 0}
+                if gender == 'SMAL':
+                    cts[mon]['boys'] = pops
+                if gender == 'SFEM':
+                    cts[mon]['girls'] = pops
+        if did == 'WF':
+            users = AppUser.objects.filter(
+                timestamp_created__gte=start_date).extra(
+                {'month': "Extract(month from timestamp_created)",
+                 'year': "Extract(year from timestamp_created)"}).values(
+                'month', 'reg_person__sex_id', 'year').annotate(
+                Count('reg_person_id')).order_by('-year', '-month')
+            for pt in users:
+                # last_login = 'Inactive from %s' % (user.last_login)
+                # status = 'Active' if user.is_active else last_login
+                mn = pt['month']
+                gender = pt['reg_person__sex_id']
+                pops = pt['reg_person_id__count']
+                year = int(pt['year'])
+                mon = calendar.month_abbr[int(mn)]
+                tarehe = '%s-%s-01' % (year, mon)
+                if tarehe not in dates:
+                    dates.append(tarehe)
+                if mon not in cts:
+                    cts[mon] = {'name': mon, 'year': year,
+                                'boys': 0, 'girls': 0}
+                if gender == 'SMAL':
+                    cts[mon]['boys'] = pops
+                if gender == 'SFEM':
+                    cts[mon]['girls'] = pops
+        if did == 'OU':
+            ngos = ['TNCB', 'TNRC']
+            ous = RegOrgUnit.objects.filter(
+                is_void=False, created_at__gte=start_date).extra(
+                {'month': "Extract(month from created_at)",
+                 'year': "Extract(year from created_at)"}).values(
+                'month', 'org_unit_type_id', 'year').annotate(
+                Count('org_unit_type_id')).order_by('-year', '-month')
+            for pt in ous:
+                mn = pt['month']
+                gender = pt['org_unit_type_id']
+                pops = pt['org_unit_type_id__count']
+                year = int(pt['year'])
+                mon = calendar.month_abbr[int(mn)]
+                tarehe = '%s-%s-01' % (year, mon)
+                if tarehe not in dates:
+                    dates.append(tarehe)
+                if mon not in cts:
+                    cts[mon] = {'name': mon, 'year': year,
+                                'boys': 0, 'girls': 0}
+                if gender in ngos:
+                    cts[mon]['boys'] = pops
+                else:
+                    cts[mon]['girls'] = pops
+        if did == 'CR' or did == 'PC':
+            cases = OVCCaseRecord.objects.select_related().filter(
+                is_void=False, date_case_opened__gte=start_date)
+            if did == 'PC':
+                # Get pending
+                cases = cases.filter(case_stage=0)
+            df_year = "Extract(year from date_case_opened)"
+            case_records = cases.extra(
+                {'month': "Extract(month from date_case_opened)",
+                 'year': df_year}).values(
+                'month', 'person__sex_id', 'year').annotate(
+                Count('person__sex_id')).order_by('-year', '-month')
+            for pt in case_records:
+                mn = pt['month']
+                gender = pt['person__sex_id']
+                pops = pt['person__sex_id__count']
+                year = int(pt['year'])
+                mon = calendar.month_abbr[int(mn)]
+                tarehe = '%s-%s-01' % (year, mon)
+                if tarehe not in dates:
+                    dates.append(tarehe)
+                if mon not in cts:
+                    cts[mon] = {'name': mon, 'year': year,
+                                'boys': 0, 'girls': 0}
+                if gender == 'SMAL':
+                    cts[mon]['boys'] = pops
+                if gender == 'SFEM':
+                    cts[mon]['girls'] = pops
+        if did == 'IP':
+            placements = OVCPlacement.objects.filter(
+                is_void=False, admission_date__gte=start_date).extra(
+                {'month': "Extract(month from admission_date)",
+                 'year': "Extract(year from admission_date)"}).values(
+                'month', 'person__sex_id', 'year').annotate(
+                Count('person__sex_id')).order_by('-year', '-month')
+            for pt in placements:
+                mn = pt['month']
+                gender = pt['person__sex_id']
+                pops = pt['person__sex_id__count']
+                year = int(pt['year'])
+                mon = calendar.month_abbr[int(mn)]
+                tarehe = '%s-%s-01' % (year, mon)
+                if tarehe not in dates:
+                    dates.append(tarehe)
+                if mon not in cts:
+                    cts[mon] = {'name': mon, 'year': year,
+                                'boys': 0, 'girls': 0}
+                if gender == 'SMAL':
+                    cts[mon]['boys'] = pops
+                if gender == 'SFEM':
+                    cts[mon]['girls'] = pops
+        if did == 'IN':
+            vals = get_dict(field_name=['intervention_id'])
+            interventions = OVCCaseEventServices.objects.filter(
+                is_void=False, date_of_encounter_event__gte=start_date,
+                service_provider='EXIT').extra(
+                {'month': "Extract(month from date_of_encounter_event)",
+                 'year': "Extract(year from date_of_encounter_event)"}).values(
+                'month', 'case_category__person__sex_id', 'year').annotate(
+                Count('case_category__person__sex_id')).order_by(
+                '-year', '-month')
+            for pt in interventions:
+                mn = pt['month']
+                gender = pt['case_category__person__sex_id']
+                pops = pt['case_category__person__sex_id__count']
+                year = int(pt['year'])
+                mon = calendar.month_abbr[int(mn)]
+                tarehe = '%s-%s-01' % (year, mon)
+                if tarehe not in dates:
+                    dates.append(tarehe)
+                if mon not in cts:
+                    cts[mon] = {'name': mon, 'year': year,
+                                'boys': 0, 'girls': 0}
+                if gender == 'SMAL':
+                    cts[mon]['boys'] = pops
+                if gender == 'SFEM':
+                    cts[mon]['girls'] = pops
+        if did == 'SM':
+            summons = OVCCaseEventSummon.objects.filter(
+                summon_date__gte=start_date, is_void=False).extra(
+                {'month': "Extract(month from summon_date)",
+                 'year': "Extract(year from summon_date)"}).values(
+                'month', 'case_category__person__sex_id', 'year').annotate(
+                Count('case_category__person__sex_id')).order_by(
+                '-year', '-month')
+            for pt in summons:
+                mn = pt['month']
+                gender = pt['case_category__person__sex_id']
+                pops = pt['case_category__person__sex_id__count']
+                year = int(pt['year'])
+                mon = calendar.month_abbr[int(mn)]
+                tarehe = '%s-%s-01' % (year, mon)
+                if tarehe not in dates:
+                    dates.append(tarehe)
+                if mon not in cts:
+                    cts[mon] = {'name': mon, 'year': year,
+                                'boys': 0, 'girls': 0}
+                if gender == 'SMAL':
+                    cts[mon]['boys'] = pops
+                if gender == 'SFEM':
+                    cts[mon]['girls'] = pops
+        if did == 'IE':
+            exits = OVCDischargeFollowUp.objects.filter(
+                is_void=False, date_of_discharge__gte=start_date).extra(
+                {'month': "Extract(month from date_of_discharge)",
+                 'year': "Extract(year from date_of_discharge)"}).values(
+                'month', 'person__sex_id', 'year').annotate(
+                Count('person__sex_id')).order_by('-year', '-month')
+            for pt in exits:
+                mn = pt['month']
+                gender = pt['person__sex_id']
+                pops = pt['person__sex_id__count']
+                year = int(pt['year'])
+                mon = calendar.month_abbr[int(mn)]
+                tarehe = '%s-%s-01' % (year, mon)
+                if tarehe not in dates:
+                    dates.append(tarehe)
+                if mon not in cts:
+                    cts[mon] = {'name': mon, 'year': year,
+                                'boys': 0, 'girls': 0}
+                if gender == 'SMAL':
+                    cts[mon]['boys'] = pops
+                if gender == 'SFEM':
+                    cts[mon]['girls'] = pops
+    except Exception as e:
+        print('error', e)
+        return [], {}
+    else:
+        return dates, cts
+
+
+def get_admin_regs(request, did, start_date):
+    """Method to get registrations monthly breakdon."""
+    try:
+        datas = {}
+        tts, bts, gts = [], [], []
+        results, dates = [], []
+        dates, cts = query_admin_regs(request, did, start_date)
+        # Sort the dates
+        dates.sort(key=lambda date: datetime.strptime(date, '%Y-%b-%d'),
+                   reverse=True)
+        for ptt in dates:
+            year, mon, day = ptt.split('-')
+            girls = cts[mon]['girls']
+            boys = cts[mon]['boys']
+            bgs = girls + boys
+            bgs_fmt = '{:20,.0f}'.format(bgs)
+            year = cts[mon]['year']
+            name = '%s - %s' % (mon, year)
+            tts.append("'%s - %s'" % (mon, year))
+            gts.append(str(girls))
+            bts.append(str(boys))
+            results.append({'item': name, 'count': bgs_fmt})
+        apts = ','.join(tts)
+        agts = ','.join(gts)
+        abts = ','.join(bts)
+        datas['categories'] = apts
+        datas['girls'] = agts
+        datas['boys'] = abts
+        datas['results'] = results
+    except Exception as e:
+        raise e
+    else:
+        return datas
+
+
+def person_api_data(request):
+    """Method to get api data."""
+    try:
+        url = '#'
+        si_list = ['TNGC', 'TNAP', 'TNRH', 'TNRS', 'TNRR', 'TNRB']
+        org_type = request.session.get('ou_type', 0)
+        person_id = request.POST.get('person_id')
+        # Get Protection cases summary
+        results = OVCCaseRecord.objects.select_related().filter(
+            person_id=person_id)
+        result, cases, case_ids, geos, cats = {}, [], [], {}, {}
+        pls = []
+        # Case Geo details for the case
+        for res in results:
+            case_ids.append(res.case_id)
+        case_geos = OVCCaseGeo.objects.filter(case_id_id__in=case_ids)
+        case_cats = OVCCaseCategory.objects.filter(case_id_id__in=case_ids)
+        for case_geo in case_geos:
+            geos[case_geo.case_id_id] = case_geo.report_orgunit.org_unit_name
+        # Case cateogories
+        vals = get_dict(field_name=['case_category_id'])
+        for case_cat in case_cats:
+            cats[case_cat.case_id_id] = case_cat.case_category
+        cnt, pnt = 0, 0
+        for res in results:
+            cnt += 1
+            cid = str(res.case_id).replace('-', '')
+            if request.user.is_superuser or org_type in si_list:
+                url = '/forms/crs/view/%s/' % cid
+            org_unit = geos[res.case_id] if res.case_id in geos else 'N/A'
+            cat_id = cats[res.case_id] if res.case_id in cats else 'N/A'
+            cat_name = vals[cat_id] if cat_id in vals else cat_id
+            val = {'id': res.case_id, 'serial': res.case_serial, 'url': url,
+                   'date': res.date_case_opened, 'cnt': cnt,
+                   'org_unit': org_unit, 'category': cat_name}
+            cases.append(val)
+        # Get admission details to an SI or CCI
+        placements = OVCPlacement.objects.filter(person_id=person_id)
+        for plt in placements:
+            pnt += 1
+            pid = str(plt.placement_id).replace('-', '')
+            if request.user.is_superuser or org_type in si_list:
+                url = '/forms/placement/view/%s/' % pid
+            org_unit = plt.residential_institution.org_unit_name
+            val = {'id': plt.placement_id, 'serial': 'N/A',
+                   'date': plt.admission_date, 'cnt': pnt,
+                   'url': url, 'org_unit': org_unit}
+            pls.append(val)
+        # Get Program admission - Example OVC PEPFAR Program
+        result['cases'] = cases
+        result['placements'] = pls
+    except Exception as e:
+        print(str(e))
+        return {}
+    else:
+        return result
+
+
+def get_all_location_list(filters=False):
+    """Get all Geo Locations."""
+    try:
+        loc_lists = SetupLocation.objects.filter(
+            area_type_id='GLOC').values('area_id', 'area_name')
+        llist = [(loc['area_id'], loc['area_name']) for loc in loc_lists]
+        return llist
+    except Exception as e:
+        print('Error getting locations - %s' % (str(e)))
+        return []
+
+
+def get_all_sublocation_list(filters=False):
+    """Get all Geo subLocations."""
+    try:
+        subloc_lists = SetupLocation.objects.filter(
+            area_type_id='GSLC').values('area_id', 'area_name')
+        slist = [(loc['area_id'], loc['area_name']) for loc in subloc_lists]
+        return slist
+    except Exception as e:
+        print('Error getting sub - locations - %s' % (str(e)))
+        return []
+
+
+def update_profile(request, action_id, account_id):
+    """Method to update person profile."""
+    try:
+        account = AppUser.objects.get(id=account_id)
+        now = timezone.now()
+        days_ago = now - timedelta(days=90)
+        # pwd = randint(1000, 9999)
+        msg = "Profile Updated Successfully"
+        results = {'status': 1}
+        if account and action_id in [1, 2, 3]:
+            results['status'] = 0
+            if action_id == 3:
+                msg = "Account deactivated Successfully"
+                account.is_active = False
+                account.timestamp_updated = now
+            if action_id == 2:
+                msg = "Account Password Changed Successfully"
+                password = 1234
+                account.is_active = True
+                account.timestamp_updated = now
+                account.password_changed_timestamp = days_ago
+                account.set_password(password)
+            if action_id == 1:
+                msg = "Account Activated Successfully"
+                account.is_active = True
+                account.timestamp_updated = now
+                account.password_changed_timestamp = days_ago
+            account.save()
+        elif action_id == 0:
+            section_id = request.POST.get('section_id')
+            try:
+                request.session['section_id'] = section_id
+                msg = "Account section details updated Successfully"
+                profile = CPOVCProfile.objects.get(user_id=account_id)
+                details = eval(profile.details)
+                details['section_id'] = section_id
+                profile.details = details
+                profile.save()
+            except Exception as e:
+                msg = "New Profile created for this user"
+                details = "{'section_id': '%s'}" % section_id
+                CPOVCProfile(
+                    user_id=account_id, details=details,
+                    is_void=False).save()
+        elif action_id == 4:
+            person_id = account.reg_person_id
+            try:
+                email = request.POST.get('email')
+                telephone = request.POST.get('telephone')[-9:]
+                other_telephone = request.POST.get('other_telephone')
+                results['status'] = 0
+                uname = str(account.username)
+                msg = 'Profile (%s) updated Successfully.' % (uname)
+                person = RegPerson.objects.get(id=person_id)
+                person.email = email
+                person.des_phone_number = telephone
+                person.save()
+                # Get Alternative Phone
+                if other_telephone:
+                    alt_phone = RegPersonsExternalIds.objects.filter(
+                        identifier_type_id='CPHM', person_id=person_id)
+                    print(alt_phone)
+                    if alt_phone:
+                        alt_phone.identifier = other_telephone
+                        alt_phone.save()
+                    else:
+                        RegPersonsExternalIds(
+                            person_id=person_id, identifier=other_telephone,
+                            identifier_type_id='CPHM').save()
+            except Exception as e:
+                print('Error in profile update (4) - %s' % (str(e)))
+                results['status'] = 9
+                msg = 'Error updating profile - %s.' % (str(e))
+        else:
+            msg = 'Functionality or Method not implemented.'
+            results['status'] = 8
+        results['message'] = msg
+        return results
+    except Exception as e:
+        msg = 'Error updating profile details - %s' % (str(e))
+        return {'status': 9, 'message': msg}
+
+
+def get_person(item_id, criteria=1):
+    """Method to get person details."""
+    try:
+        if criteria == 1:
+            user = AppUser.objects.get(id=item_id)
+            psn = user.reg_person
+            names = '%s %s' % (psn.first_name, psn.surname)
+        else:
+            person = RegPerson.objects.get(id=item_id)
+            names = '%s %s' % (person.first_name, person.surname)
+    except Exception:
+        return item_id
+    else:
+        return names
+
+
+def get_person_external_ids(request):
+    """Method to get external ids."""
+    try:
+        ext_ids = {}
+        pid = request.user.reg_person_id
+        exts = RegPersonsExternalIds.objects.filter(
+            person_id=pid, is_void=False)
+        for ext in exts:
+            ext_ids[ext.identifier_type_id] = ext.identifier
+    except Exception as e:
+        print('Error getting external ids - %s' % str(e))
+        return {}
+    else:
+        return ext_ids
+
+
+def save_other_geos(person_id, country_code, city, location=None):
+    """Save Persons other geo ares."""
+    try:
+        geo, created = RegPersonsOtherGeo.objects.update_or_create(
+            person_id=person_id,
+            defaults={'country_code': country_code,
+                      'city': city, 'is_void': False},)
+    except Exception, e:
+        error = 'Error saving other geos -%s' % (str(e))
+        print(error)
+        return None, None
+    else:
+        return geo, created

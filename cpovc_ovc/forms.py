@@ -113,11 +113,6 @@ class OVCRegistrationForm(forms.Form):
                'id': 'reg_date',
                'data-parsley-required': "true"}))
 
-    exit_date = forms.CharField(widget=forms.TextInput(
-        attrs={'class': 'form-control',
-               'id': 'exit_date',
-               'data-parsley-required': "true"}))
-
     has_bcert = forms.CharField(
         widget=forms.CheckboxInput(
             attrs={'class': 'form-control',
@@ -181,14 +176,6 @@ class OVCRegistrationForm(forms.Form):
         widget=forms.Select(
             attrs={'class': 'form-control',
                    'id': 'exit_reason'}))
-
-    ovc_exit_reason = forms.ChoiceField(
-        choices=exit_list,
-        initial='0',
-        required=True,
-        widget=forms.Select(
-            attrs={'class': 'form-control',
-                   'id': 'ovc_exit_reason'}))
 
     hiv_status = forms.ChoiceField(
         choices=hiv_status_list,
@@ -261,8 +248,3 @@ class OVCRegistrationForm(forms.Form):
         widget=forms.Select(
             attrs={'class': 'form-control',
                    'id': 'school_class'}))
-
-    exit_org_name = forms.CharField(widget=forms.TextInput(
-        attrs={'class': 'form-control',
-               'placeholder': 'Organization name exiting to',
-               'id': 'exit_org_name'}))

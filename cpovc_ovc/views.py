@@ -11,11 +11,10 @@ from cpovc_registry.models import (
     RegPerson, RegPersonsGuardians, RegPersonsSiblings, RegPersonsExternalIds)
 from cpovc_main.functions import get_dict
 from .models import (
-    OVCRegistration, OVCHHMembers, OVCEligibility, OVCViralload)
+    OVCRegistration, OVCHHMembers, OVCEligibility)
 from .functions import (
     ovc_registration, get_hh_members, get_ovcdetails, gen_cbo_id, search_ovc,
-    search_master, get_school, get_health, manage_checkins, ovc_management,
-    get_exit_org)
+    search_master, get_school, get_health, manage_checkins)
 from cpovc_auth.decorators import is_allowed_ous
 from cpovc_forms.models import OVCCareEvents
 
@@ -39,13 +38,6 @@ def ovc_home(request):
                 results = {'status': 0, 'message': msg, 'checkins': chs}
                 if rid == 2:
                     results = chs
-                return JsonResponse(results, content_type='application/json',
-                                    safe=False)
-            elif action_id in [4]:
-                msg = 'Record deleted successfully.'
-                cid = request.POST.get('cid')
-                ovc = OVCRegistration.objects.filter(id=cid).delete()
-                results = {'status': 0, 'message': 'Record deleted successfully.'}
                 return JsonResponse(results, content_type='application/json',
                                     safe=False)
             form = OVCSearchForm(data=request.POST)
@@ -180,7 +172,6 @@ def ovc_edit(request, id):
             return HttpResponseRedirect(url)
         child = RegPerson.objects.get(is_void=False, id=ovc_id)
         creg = OVCRegistration.objects.get(is_void=False, person_id=ovc_id)
-        exit_org_name = get_exit_org(ovc_id)
         bcert = 'on' if creg.has_bcert else ''
         disb = 'on' if creg.is_disabled else ''
         exited = '' if creg.is_active else 'on'
@@ -197,9 +188,6 @@ def ovc_edit(request, id):
         hhid = hhold.house_hold_id
         hhmqs = OVCHHMembers.objects.filter(
             is_void=False, house_hold_id=hhid).order_by("-hh_head")
-        # Viral Load
-        vloads = OVCViralload.objects.filter(
-            is_void=False, person_id=ovc_id).order_by("-viral_date")
         # add caregivers hiv status
         hhmembers = hhmqs.exclude(person_id=child.id)
         # Get guardians and siblings ids
@@ -230,12 +218,11 @@ def ovc_edit(request, id):
         facility_id, facility = '', ''
         if creg.hiv_status == 'HSTP':
             health = get_health(ovc_id)
-            if health:
-                ccc_no = health.ccc_number
-                date_linked = health.date_linked.strftime('%d-%b-%Y')
-                art_status = health.art_status
-                facility_id = health.facility_id
-                facility = health.facility.facility_name
+            ccc_no = health.ccc_number
+            date_linked = health.date_linked.strftime('%d-%b-%Y')
+            art_status = health.art_status
+            facility_id = health.facility_id
+            facility = health.facility.facility_name
         # Get School information
         sch_class, sch_adm_type = '', ''
         school_id, school = '', ''
@@ -254,9 +241,6 @@ def ovc_edit(request, id):
             'criteria', flat=True)
         if reg_date:
             date_reg = reg_date.strftime('%d-%b-%Y')
-        exit_date = None
-        if creg.exit_date:
-            exit_date = creg.exit_date.strftime('%d-%b-%Y')
         all_values = {'reg_date': date_reg, 'cbo_uid': creg.org_unique_id,
                       'cbo_uid_check': creg.org_unique_id,
                       'has_bcert': bcert, 'disb': disb,
@@ -269,10 +253,7 @@ def ovc_edit(request, id):
                       'hiv_status': creg.hiv_status, 'link_date': date_linked,
                       'ccc_number': ccc_no, 'art_status': art_status,
                       'eligibility': criterias, 'is_exited': exited,
-                      'exit_reason': creg.exit_reason,
-                      'ovc_exit_reason': creg.exit_reason,
-                      'exit_date': exit_date,
-                      'exit_org_name': exit_org_name}
+                      'exit_reason': creg.exit_reason}
         form = OVCRegistrationForm(guids=pids, data=all_values)
         for hhm in hhmembers:
             status_id = 'status_%s' % (hhm.person_id)
@@ -302,7 +283,7 @@ def ovc_edit(request, id):
                        'vals': vals, 'hhold': hhold, 'extids': gparams,
                        'hhmembers': hhmembers, 'levels': levels,
                        'sch_class': sch_class, 'siblings': siblings,
-                       'ctaker': ctaker, 'vloads': vloads})
+                       'ctaker': ctaker})
     except Exception, e:
         print "error with OVC editing - %s" % (str(e))
         raise e
@@ -369,15 +350,6 @@ def ovc_view(request, id):
         hhmqs = OVCHHMembers.objects.filter(
             is_void=False, house_hold_id=hhid).order_by("-hh_head")
         hhmembers = hhmqs.exclude(person_id=child.id)
-        # Viral load
-        vload = OVCViralload.objects.filter(
-            is_void=False, person_id=ovc_id).order_by("-viral_date")[:1]
-        vl_sup, v_val, v_dt = 'Missing', None, None
-        if vload:
-            for vl in vload:
-                v_val = vl.viral_load
-                v_dt = vl.viral_date
-            vl_sup = 'YES' if not v_val or v_val < 1000 else 'NO'
         # Get siblings
         siblings = RegPersonsSiblings.objects.filter(
             is_void=False, child_person_id=child.id)
@@ -407,8 +379,7 @@ def ovc_view(request, id):
                        'vals': vals, 'hhold': hhold, 'creg': creg,
                        'extids': gparams, 'health': health,
                        'hhmembers': hhmembers, 'school': school,
-                       'services': services, 'allow_edit': allow_edit,
-                       'suppression': vl_sup})
+                       'services': services, 'allow_edit': allow_edit})
     except Exception, e:
         print "error with OVC viewing - %s" % (str(e))
         raise e
@@ -428,18 +399,3 @@ def hh_manage(request, hhid):
     except Exception, e:
         print "error getting hh members - %s" % (str(e))
         raise e
-
-
-@login_required(login_url='/')
-def ovc_manage(request):
-    """Some default page for Server Errors."""
-    try:
-        ovc_management(request)
-        results = {'message': 'Successful'}
-        return JsonResponse(results, content_type='application/json',
-                            safe=False)
-    except Exception, e:
-        msg = "error updating OVC details - %s" % (str(e))
-        results = {'message': msg}
-        return JsonResponse(results, content_type='application/json',
-                            safe=False)

@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% load app_filters %}
 {% load staticfiles %}
-{% block page_title %} Case Record Sheet {% endblock %}
+{% block page_title %} New Case Record Sheet {% endblock %}
 {% block style_code %}
 <link href="{% static 'plugins/parsley/src/parsley.css' %}" rel="stylesheet" />
 <link href="{% static 'plugins/bootstrap-datepicker/css/datepicker3.css' %}" rel="stylesheet" />
@@ -14,35 +14,10 @@
   color: #f00;
 }
 
-.td_style {
-  color: #0057e7;
+td.td_style {
+  border-bottom:1pt solid black;
+  color: #000;
 }
-/*
-#table-wrapper {
-  position:relative;
-}
-#table-scroll {
-  height:150px;
-  overflow:auto;  
-  margin-top:20px;
-}
-#table-wrapper table {
-  width:100%;
-
-}
-#table-wrapper table * {
-  background:yellow;
-  color:black;
-}
-#table-wrapper table thead th .text {
-  position:absolute;   
-  top:-20px;
-  z-index:2;
-  height:20px;
-  width:35%;
-  border:1px solid red;
-}
-*/
 </style>
 {% endblock %}
 
@@ -66,15 +41,40 @@
                             UNDER 1 YEAR
                         {% else %}
                             {{ data.date_of_birth|gen_age }} YRS 
-                        {% endif %}</b></small></h1>
+                        {% endif %} |{{ sco }}|</b></small></h1>
 
 {% endfor %}
 <!-- end page-header -->
+{% if messages %}
+    {% for message in messages %}
+    {% if 'error' in message.tags %}
+        <div id="messages" class="alert alert-danger fade in">
+        <span class="close" data-dismiss="alert">×</span>
+        <i class="fa fa-info fa-2x pull-left"></i>
+    {% else %}
+        <div id="messages" class="alert alert-success fade in">
+        <span class="close" data-dismiss="alert">×</span>
+        <i class="fa fa-check fa-2x pull-left"></i>
+    {% endif %}
+        
+    	<p>{{ message }}</p>
+    </div>
+   {% endfor %}
+{% endif %}
+{% if message %}
+	<div id="messages" class="alert alert-success fade in">
+	    <span class="close" data-dismiss="alert">×</span>
+	    <i class="fa fa-check fa-2x pull-left"></i>
+	    <p class="invalid-form-message"> {{ message }}</p>
+	</div>
+{% endif %}
 
-<div id="messages" class="alert alert-danger fade in" style="display: none;" tabindex="1">
+<div id="div_roles" style="display: none;">
+<div class="alert alert-danger fade in" tabindex="1">
     <span class="close" data-dismiss="alert">×</span>
     <i class="fa fa-info fa-2x pull-left"></i>
-    <span class="invalid-form-message" id="invalid-form-message"></span>
+    <p>You have no Reporting Sub County assigned to you. Contact your in charge to correct this in Roles.</p>
+</div>
 </div>
 
 <!-- begin row -->
@@ -137,7 +137,7 @@
 									{{ form.case_category_id }}
 
 									<div class="form-group">
-										<label class="control-label col-md-3 col-sm-3" for="case_originator">Case Reporter/Originator : <span class="asteriskField">* </label>
+										<label class="control-label col-md-3 col-sm-3" for="case_originator">Case Reporter/Originator : <span class="asteriskField">* </span></label>
 										<div class="col-md-8 col-sm-8">
 											{{ form.case_reporter }}
 										</div>
@@ -145,14 +145,14 @@
 									</div>
 									<!-- Court Reported -->
 									<div id="div_court_name" class="form-group" style="display:none;">
-										<label class="control-label col-md-3 col-sm-3" for="court_name">Court Name : <span class="asteriskField">* </label>
+										<label class="control-label col-md-3 col-sm-3" for="court_name">Court Name : <span class="asteriskField">* </span></label>
 										<div class="col-md-8 col-sm-8">
 											{{ form.court_name }}
 										</div>
 										<a href="#" data-toggle="tooltip" title="Enter >Court Name"><i class="fa fa-info-circle fa-sm"></i></a>
 									</div>
 									<div id="div_court_number" class="form-group" style="display:none;">
-										<label class="control-label col-md-3 col-sm-3" for="court_number">Court/File Number : <span class="asteriskField">* </label>
+										<label class="control-label col-md-3 col-sm-3" for="court_number">Court/File Number : <span class="asteriskField">* </span></label>
 										<div class="col-md-8 col-sm-8">
 											{{ form.court_number }}
 										</div>
@@ -161,14 +161,14 @@
 
 									<!-- Police Reported -->
 									<div id="div_police_station" class="form-group" style="display:none;">
-										<label class="control-label col-md-3 col-sm-3" for="police_station">Police Station : <span class="asteriskField">* </label>
+										<label class="control-label col-md-3 col-sm-3" for="police_station">Police Station : <span class="asteriskField">* </span></label>
 										<div class="col-md-8 col-sm-8">
 											{{ form.police_station }}
 										</div>
 										<a href="#" data-toggle="tooltip" title="Enter Police Station"><i class="fa fa-info-circle fa-sm"></i></a>
 									</div>
 									<div id="div_ob_number" class="form-group" style="display:none;">
-										<label class="control-label col-md-3 col-sm-3" for="ob_number">OB Number : <span class="asteriskField">* </label>
+										<label class="control-label col-md-3 col-sm-3" for="ob_number">OB Number : <span class="asteriskField">* </span></label>
 										<div class="col-md-8 col-sm-8">
 											{{ form.ob_number }}
 										</div>
@@ -177,7 +177,7 @@
 									
 									<!-- Parents/Relatives/Non-Relative Reported -->
                                     <div id="div_reporter_names" class="form-group" style="display:none;">
-                                        <label class="control-label col-md-3 col-sm-3" for="case_reporter_first_name">Reporter Name(s) :<span class="asteriskField">* </label>
+                                        <label class="control-label col-md-3 col-sm-3" for="case_reporter_first_name">Reporter Name(s) :<span class="asteriskField">* </span></label>
                                         <div class="col-md-3 col-sm-6">
                                             {{ form.case_reporter_first_name }}
                                         </div> 
@@ -219,23 +219,57 @@
                                     </div> 
                                     -->
 									<div class="form-group">
-										<label class="control-label col-md-3 col-sm-3" for="geolocs">Place Of Occurence : <span class="asteriskField">* </label>
-										<div class="col-md-2 col-sm-2">
-                                             County *    {{ form.occurence_county }}
+										<label class="control-label col-md-3 col-sm-3" for="geolocs">Place Of Occurence : <span class="asteriskField">* </span></label>
+										<div class="col-md-4 col-sm-8">
+                                             <label class="col-sm-4" for="child_ovc">In the Country<span class="asteriskField">*</span></label>
+                                                                              
+                                        {{ form.occurence_nationality }}
                                         </div>
-										<div class="col-md-2 col-sm-2">
-                                             Sub County *   {{ form.occurence_subcounty }}
+                                        <div id="nationality_error"></div>
+									</div>
+									<div class="form-group" id="occurence_country_div">
+										<label class="control-label col-md-3 col-sm-3" for="occurence_country"></label>
+                                        <div class="col-md-4 col-sm-4">
+                                             <label>Country <span class="asteriskField">*</span></label>   {{ form.occurence_country }}
                                         </div>
-                                        <div class="col-md-2 col-sm-2">
-                                             Ward   {{ form.occurence_ward }}
-                                        </div>
-                                        <div class="col-md-2 col-sm-2">
-                                        	 Village/Estate   {{ form.occurence_village }}
+                                        <div class="col-md-4 col-sm-4">
+                                        	 <label>City / Town <span class="asteriskField">*</span></label>   {{ form.occurence_city }}
                                         </div>
                                         <a href="#" data-toggle="tooltip" title="Enter Place Of Occurence"><i class="fa fa-info-circle fa-sm"></i></a>
-									</div> 
+									</div>
+									<div class="form-group" id="occurence_county_div">
+										<label class="control-label col-md-3 col-sm-3" for="occurence_county"></label>
+                                        <div class="col-md-4 col-sm-4">
+                                             <label>County <span class="asteriskField">*</span></label>   {{ form.occurence_county }}
+                                        </div>
+                                        <div class="col-md-4 col-sm-4">
+                                        	 <label>Sub County <span class="asteriskField">*</span></label>   {{ form.occurence_subcounty }}
+                                        </div>
+                                        <a href="#" data-toggle="tooltip" title="Enter Place Of Occurence"><i class="fa fa-info-circle fa-sm"></i></a>
+									</div>
+									<div class="form-group" id="occurence_ward_div">
+										<label class="control-label col-md-3 col-sm-3" for="occurence_ward"></label>
+                                        <div class="col-md-4 col-sm-4">
+                                             <label>Ward</label>   {{ form.occurence_ward }}
+                                        </div>
+                                        <div class="col-md-4 col-sm-4">
+                                        	 <label>Village/Estate </label>  {{ form.occurence_village }}
+                                        </div>
+                                        <a href="#" data-toggle="tooltip" title="Enter Place Of Occurence"><i class="fa fa-info-circle fa-sm"></i></a>
+									</div>
+									<div class="form-group" id="occurence_location_div">
+										<label class="control-label col-md-3 col-sm-3" for="occurence_location"></label>
+                                        <div class="col-md-4 col-sm-4">
+                                             <label>Location</label>   {{ form.occurence_location }}
+                                        </div>
+                                        <div class="col-md-4 col-sm-4">
+                                        	 <label>Sub Location</label>   {{ form.occurence_sublocation }}
+                                        </div>
+                                        <a href="#" data-toggle="tooltip" title="Select Location"><i class="fa fa-info-circle fa-sm"></i></a>
+									</div>
+
                                     <div class="form-group">
-										<label class="control-label col-md-3 col-sm-3" for="geolocs">Place Of Reporting : <span class="asteriskField">* </label>
+										<label class="control-label col-md-3 col-sm-3" for="geolocs">Place Of Reporting : <span class="asteriskField">* </span></label>
 										<div class="col-md-4 col-sm-4">
                                              Sub County *   
                                              <br> {{ form.report_subcounty }}
@@ -274,21 +308,33 @@
 										<label class="control-label col-md-2 col-sm-2" for="init_data">Initial Details :</label>
 										<div class="col-md-8 col-sm-8">
 												
-												{% for data in init_data %}
-		                                			<h6>NAME : <i> {{ data.first_name }} {{ data.surname }}</i></h6>
-												    <h6>SEX : <i> {{ data.sex_id|gen_value:vals }}</i></h6>
-												    <h6>DATE OF BIRTH : <i> {{ data.date_of_birth }}</i></h6>
-												    <h6>
-												    AGE IN YEARS :
-												        <i>
-												            {% if data.date_of_birth|gen_age == 0 %}
-												                UNDER 1 YEAR
-												            {% else %}
-												                {{ data.date_of_birth|gen_age }} YRS 
-												            {% endif %}
-												         </i>
-												    </h6>
-		                                		{% endfor %}
+										    <table class="table table-profile">
+										   	 <tbody>
+										   	 	{% for data in init_data %}
+		                                        <tr>
+		                                            <td class="field" width="40%">NAME : </td>
+		                                            <td>{{ data.first_name }} {{ data.surname }}</td>
+		                                        </tr>
+		                                        <tr>
+		                                            <td class="field">SEX : </td>
+		                                            <td>{{ data.sex_id|gen_value:vals }}</td>
+		                                        </tr>
+		                                        <tr>
+		                                            <td class="field">DOB : </td>
+		                                            <td>{{ data.date_of_birth }}</td>
+		                                        </tr>
+		                                        <tr>
+		                                            <td class="field">AGE (YEARS) : </td>
+		                                            <td>{% if data.date_of_birth|gen_age == 0 %}
+											                UNDER 1 YEAR
+											            {% else %}
+											                {{ data.date_of_birth|gen_age }} YRS 
+											            {% endif %}
+											        </td>
+		                                        </tr>
+		                                        {% endfor %}
+		                                     </tbody>
+		                                    </table>
 												
 										</div>										
 									</div>
@@ -438,19 +484,19 @@
 								<legend class="pull-left width-full">Case Data</legend>
 
 								<div class="row">
-                                	<div class="col-md-3 col-sm-2">
+                                	<div class="col-md-4 col-sm-3">
 	                                    <div class="form-group">
 	                                        <label for="serial_number">Case Serial Number <span class="asteriskField">*</span></label>
 	                                        {{ form.serial_number }}
 	                                    </div>
 	                                </div> 
-	                                <div class="col-md-3">
+	                                <div class="col-md-4">
 	                                    <div class="form-group block1">
 	                                        <label for="perpetrator_status">Alleged Perpetrator/Offender Known? <span class="asteriskField">*</span></label>
 	                                        {{ form.perpetrator_status }}
 	                                    </div>
 	                                </div>
-	                                <div class="col-md-3">
+	                                <div class="col-md-4">
 	                                    <div id="div_perpetrator_relationship" class="form-group block1" style="display:none;">
 	                                        <label for="perpetrator_relationship">Relationship to Child <span class="asteriskField">*</span></label>
 	                                        {{ form.perpetrator_relationship }}
@@ -460,13 +506,13 @@
 
                                 <div class="divider pull-left width-full"></div>
                                 <div id="div_perpetrator_names" class="row" style="display:none;">
-                                	<div class="col-md-3">
+                                	<div class="col-md-4">
 	                                    <div class="form-group block1">
 	                                        <label for="perpetrator_first_name">First Name <span class="asteriskField">*</span></label>
 	                                        {{ form.perpetrator_first_name }}
 	                                    </div>
 	                                </div> 
-	                                <div class="col-md-3">
+	                                <div class="col-md-4">
 	                                    <div class="form-group block1">
 	                                        <label for="perpetrator_surname">Surname <span class="asteriskField">*</span></label>
 	                                        {{ form.perpetrator_surname }}
@@ -477,11 +523,17 @@
 	                                        <label for="perpetrator_other_names">Other Name(s)<span class="asteriskField"></span></label>
 	                                        {{ form.perpetrator_other_names }}
 	                                    </div>
-	                                </div>                                	
+	                                </div>
+	                                <div class="col-md-1">
+	                                    <div class="form-group block1">
+	                                    	<label for="more_perpetrators"><b>Perpetrators</b></label>
+	                                    	<button type="button" class="btn btn-success" id="add_perpetrators"><i class="fa fa-plus"></i> More </button>
+	                                    </div>
+	                                </div>                            	
                                 </div>
 
                                 <div class="divider pull-left width-full"></div>
-                                <div class="row col-md-10">
+                                <div class="row col-md-12">
                                 	<fieldset>
                                 	<legend><h6>Case Category(s)<span class="asteriskField">*</span></h6></legend>
                                 		<div id="div_casecategory_errormsgs" style="display:none">
@@ -491,8 +543,7 @@
                                     	<table id="casecategory_manager_table" class="table">
 		                                    <thead>
 		                                        <tr id="id_inputHeaders">
-		                                            <th></th>
-		                                            <th width="20%">Case Category(s)</th>
+		                                            <th width="20%" colspan="2">Case Category(s)</th>
 		                                            <th width="20%">Case SubCategory(s)</th>
 		                                            <th width="15%">Date Of Event</th>
 		                                            <th width="20%">Place Of Event</th>
@@ -502,15 +553,14 @@
 		                                    </thead>
 		                                    <tbody>
 		                                        <tr id="id_inputElements">
-		                                            <td></td>
-		                                            <td width="20%">
+		                                            <td width="25%" colspan="2">
 			                                            {{ form.case_category }}
 			                                            <div id="case_category_errormsg" style="display:none;">
 			                                                <span><p class="dialog_paragraph">This value is required</p></span>
 			                                            </div>
 		                                            </td>
 
-		                                          	<td width="20%">
+		                                          	<td width="25%">
 			                                            {{ form.case_subcategory }}
 			                                            <h6><span id="sel_case_subcategory"></span></h6>
 			                                            <div id="case_subcategory_errormsg" style="display:none;">
@@ -532,7 +582,7 @@
 			                                            </div>
 		                                            </td>
 
-		                                            <td width="20%">
+		                                            <td width="10%">
 			                                            {{ form.case_nature }}
 			                                            <div id="case_nature_errormsg" style="display:none;">
 			                                                <span><p class="dialog_paragraph">This value is required</p></span>
@@ -583,7 +633,7 @@
                                 </div>
 
                                 <div class="divider pull-left width-full"></div>
-                                <div id="div_referralactors" style="display:none" class="row col-md-10">
+                                <div id="div_referralactors" style="display:none" class="row col-md-12">
                                 	<fieldset>
                                 		<legend><h6>Referral(s)<span class="asteriskField">*</span></h6></legend>
                                 		<div id="div_referralactors_errormsgs" style="display:none">
@@ -595,8 +645,8 @@
 		                                        <tr id="id_inputHeaders">
 		                                        	<th></th>
 		                                            <th width="20%">Referral Actor</th>
-		                                            <th width="20%">Specify</th>
-		                                            <th width="50%">Reason</th>
+		                                            <th width="30%">Specify</th>
+		                                            <th width="40%">Reason</th>
 		                                            <th width="10%">Actions</th> 
 		                                        </tr>
 		                                    </thead>
@@ -639,14 +689,14 @@
 
                                 <div class="divider pull-left width-full"></div>
                                 <div class="row">
-                                	<div class="col-md-4">
+                                	<div class="col-md-6">
 	                                    <div class="form-group block1">
 	                                        <label for="immediate_needs">Immediate Needs <span class="asteriskField">*</span></label>	                                        
                                 			{{ form.immediate_needs }}
                                 			<span id="sel_immediate_needs"></span>
 	                                    </div>
 	                                </div> 
-	                                <div class="col-md-4">
+	                                <div class="col-md-6">
 	                                    <div class="form-group block1">
 	                                        <label for="future_needs">Future Needs <span class="asteriskField">*</span></label>	                                        
                                 			{{ form.future_needs }}
@@ -662,14 +712,73 @@
 
 					<div class="panel-body panel-form">
 						<div class="form-group">
-							<label class="control-label col-md-4 col-sm-4"></label>
-							<div class="col-md-6 col-sm-6">
+							<div class="col-md-12 col-sm-12">
+								<center>
 								<button id="mysubmit3" type="submit" class="btn btn-primary">Submit</button>
 								<a href="javascript:history.go(-1)" class="btn btn-white">Cancel</a>
+								</center>
 							</div>
 						</div>
                     </div>
-
+                    <!-- #modal-dialog -->
+					<div class="modal fade" id="modal-perpetrators">
+						<div class="modal-dialog modal-lg">
+							<div class="modal-content">
+								<div class="modal-header">
+									<button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>
+									<h4 class="modal-title">More Perpetrators</h4>
+								</div>
+								<div class="modal-body">
+									<input type="hidden" name="all_perps" id="all_perps" value=""/>
+									<div id="perp_errors"></div>
+									<div class="form-group">
+                                        <label class="col-md-2 control-label">Relationship</label>
+                                        <div class="col-md-5">
+                                            {{ form.perp_relation }}
+                                        </div>
+                                        <div class="col-md-4">
+                                            {{ form.perp_other_relation }}
+                                        </div>
+                                        <div class="col-md-1"></div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="col-md-2 control-label">Names</label>
+                                        <div class="col-md-3">
+                                            <input type="text" name="perp_first_name" id="perp_first_name">
+                                        </div>
+                                        <div class="col-md-3">
+                                            <input type="text" name="perp_surname" id="perp_surname">
+                                        </div>
+                                        <div class="col-md-3">
+                                            <input type="text" name="perp_other_names" id="perp_other_names">
+                                        </div>
+                                        <div class="col-md-1">
+                                            <button class="btn btn-sm btn-primary m-r-5" id="add_perp_btn"> Add </button>
+                                        </div>
+                                    </div>
+									<table id="perp_table" class="table">
+										<thead>
+											<tr>
+												<th width="20%">Relationship</th><th width="20%"></th><th width="20%">First Name</th>
+												<th width="20%">Surname</th><th width="15%">Other Names</th><th width="5%"></th>
+											</tr>
+										</thead>
+										<tbody>
+										</tbody>										
+									</table>
+									
+									<div class="note note-warning">
+										<p>You can add up to Four(4) more Perpetrators totaling to Five(5) but first fill the First one on the main page. Only use this to add from the 2nd, 3rd, 4th and 5th.</p>
+									</div>
+								</div>
+								<div class="modal-footer">
+									<a href="javascript:;" class="btn btn-sm btn-white" data-dismiss="modal">Close</a>
+									<a href="javascript:;" class="btn btn-sm btn-success">Action</a>
+								</div>
+							</div>
+						</div>
+					</div>
+					<!-- #end modal-dialog -->
 				</form>
             </div>
         </div>
@@ -1109,9 +1218,11 @@ function getUserSubcounty()
         success: function(result){  
             var multiselect_dict = {};
             var multiselect_dict_initial = { label:'Please Select', value:''};  
-            multiselect_data.push(multiselect_dict_initial);     
+            multiselect_data.push(multiselect_dict_initial);
+            var scs = 0    
             $.each(result, function(i, val) 
             {
+            	scs += 1;
                 var area_id = val.area_id;
                 var area_name = val.area_name;
                 var multiselect_dict = { label: area_name, value: area_id };
@@ -1128,6 +1239,10 @@ function getUserSubcounty()
             });
             $("#report_subcounty").multiselect("refresh");
             $("#report_subcounty").multiselect('dataprovider', multiselect_data);
+            if(scs == 0){
+            	$('#div_roles').show();
+            }
+            
 
         },
         error: function(){
@@ -1242,7 +1357,6 @@ function getCaseSubCategories(case_category_id)
             });        
 }
 </script>
-</script>
 
 <script>
 jQuery(document).ready(function() 
@@ -1259,6 +1373,9 @@ jQuery(document).ready(function()
 	var category_id = $("#case_category").val();
 	getCaseSubCategories(category_id);
 
+	// For CTiP
+	$("#occurence_nationality_0").prop("checked", true);
+
 
 	/* Populate subcounty list with Working_in */ 
     getUserSubcounty(); 
@@ -1271,7 +1388,7 @@ jQuery(document).ready(function()
 	//multi selects
 	$('#physical_subcondition, #other_subcondition, #mental_subcondition, #report_subcounty, #report_ward, #report_orgunit, #occurence_county, #occurence_subcounty, #occurence_ward, #family_status, #gliving_in, #case_subcategory, #case_category, #place_of_event, #case_nature, #intervention, #refferal_to, #refferal_destination_type, #refferal_destination_description, #immediate_needs, #future_needs').multiselect({
         selectAllValue: 'multiselect-all',
-        includeSelectAllOption: true,
+        includeSelectAllOption: false,
         enableCaseInsensitiveFiltering: true,
         numberDisplayed: 1,
         maxHeight: 300,
@@ -1652,6 +1769,14 @@ jQuery(document).ready(function()
 
 	$('html,body').scrollTop(0);
 	FormWizardValidation.init();
+
+	// Added for CTiP
+	var ntn = $('input[name=occurence_nationality]:checked', '#new_case_record').val();
+	handle_nationality(ntn);
+	$('#new_case_record input[name=occurence_nationality]').on('change', function() {
+	   var ntn = $('input[name=occurence_nationality]:checked', '#new_case_record').val();
+	   handle_nationality(ntn);
+	});
 });
 </script>
 <script type="text/javascript">
@@ -1706,6 +1831,35 @@ function getUserOrgUnits()
             }
         }); 
 }
+
+
+function handle_nationality(ntn){
+    console.log(ntn);
+    if (ntn == 'ANNO'){
+        $('#occurence_county_div').hide();
+        $('#occurence_county').attr('data-parsley-required', 'false');
+        $('#occurence_subcounty').attr('data-parsley-required', 'false');
+        $('#occurence_ward_div').hide();
+        $('#occurence_location_div').hide();   
+        //Foreigners
+        $('#occurence_country_div').show();
+        $('#occurence_country').attr('data-parsley-required', 'true');
+        $('#occurence_city').attr('data-parsley-required', 'true');
+    }else{
+        $('#occurence_county_div').show();
+        $('#occurence_county').attr('data-parsley-required', 'true');
+        $('#occurence_subcounty').attr('data-parsley-required', 'true');
+        $('#occurence_ward_div').show();
+        $('#occurence_location_div').show();
+        //Foreigners
+        $('#occurence_country_div').hide();
+        $('#occurence_country').attr('data-parsley-required', 'false');
+        $('#occurence_city').attr('data-parsley-required', 'false');
+    }
+
+}
+
+
 function displayVals(value)
 {
 	var selections = [];
@@ -2215,5 +2369,171 @@ $('#new_case_record').submit(function(e) {
 		 $(".alert").hide();
 	}
 });
-</script>	
+// Perpetrators Modal
+$('#add_perpetrators').click(function() {
+	$('#modal-perpetrators').modal('show');
+});
+
+var perp_id = $( "#perp_relation" ).val();
+$("#perp_relation").change(function(){
+ 	var perp_id = $(this).val();
+ 	if (perp_id == 'CGOR'){
+		$("#perp_other_relation").prop("disabled", false);
+	}else{
+		$("#perp_other_relation").prop("disabled", true);
+	}
+});
+
+// Add perps to list
+$("#perp_relation option[value='CGNN']").remove();
+$("#perp_relation option[value='CGOR']").text("Other");
+var cnt = 0;
+var all_perps = [];
+$('#perp_relation, #perp_first_name, #perp_surname, #perp_other_names, #perp_other_relation').attr('data-parsley-required', false);
+$('#perp_relation, #perp_first_name, #perp_surname, #perp_other_names').change(function (e) { 
+	$('#perp_errors').html('').addClass('hidden');
+});
+$('#add_perp_btn').click(function (e) { 
+	e.preventDefault();
+	$("#perp_errors").removeClass( "alert alert-danger fade in" );
+	var new_perp_relation = $('#perp_relation').val();
+	var new_perp_orelation = $('#perp_other_relation').val();
+	var new_perp_relation_txt = $('#perp_relation option:selected').text();
+	var new_perp_orelation_txt = $('#perp_other_relation option:selected').text();
+	var new_perp_fname = $('#perp_first_name').val();
+	var new_perp_sname = $('#perp_surname').val();
+	var new_perp_oname = $('#perp_other_names').val();
+	var msg = 'Please provide atleast Relationship (Specify if Other), First Name and Surname.'
+
+	if(new_perp_relation.length < 2 || new_perp_fname.length < 2 || new_perp_sname.length < 2 || (new_perp_relation == 'CGOR' && new_perp_orelation.length < 2)){
+		$('#perp_errors').html(msg).removeClass('hidden');
+		$("#perp_errors").addClass( "alert alert-danger fade in" );
+	}else{
+		if (all_perps.length <= 4){
+			$('#perp_errors').html('').addClass('hidden');
+			$("#perp_errors").removeClass( "alert alert-danger fade in" );
+			if (new_perp_orelation.length < 2) new_perp_orelation_txt = '';
+			var this_perp = {};
+			cnt += 1;
+			this_perp['relation'] = new_perp_relation;
+			this_perp['other_relation'] = new_perp_orelation;
+			this_perp['first_name'] = new_perp_fname;
+			this_perp['surname'] = new_perp_sname;
+			this_perp['other_name'] = new_perp_oname;
+		    this_perp['item_id'] = cnt;
+			all_perps.push(this_perp);
+			// console.log('all_perps == '+JSON.stringify(all_perps));
+			var perp_val = JSON.stringify(this_perp);
+			var rm_btn = "<button type='button' id='"+cnt+"' rel='"+perp_val;
+			rm_btn += "' class='remove_perp_row btn btn-xs btn-danger'>Remove</button>";
+			var tr_row = '<tr id="trd_'+cnt+'"><td>'+new_perp_relation_txt;
+			tr_row += '</td><td>'+new_perp_orelation_txt+'</td><td>'+new_perp_fname+'</td>';
+			tr_row += '</td><td>'+new_perp_sname+'</td><td>'+new_perp_oname+'</td>';
+			tr_row += '<td>'+ rm_btn +'</td></tr>';
+			$('#perp_table tbody').append(tr_row);
+			$('input[name=all_perps]').val(JSON.stringify(all_perps));
+			var msg = 'Perpetrator added to grid Successfully.'
+			$('#perp_errors').html(msg).removeClass('hidden');
+			$("#perp_errors").addClass( "alert alert-success fade in" );
+			// Empty the fields
+			$('#perp_relation').val('');
+			$('#perp_other_relation').val('');
+			$('#perp_first_name').val('');
+			$('#perp_surname').val('');
+			$('#perp_other_names').val('');
+		}else{
+			var msg = 'Maximum of 4 Perpetrators ONLY allowed.'
+			$('#perp_errors').html(msg).removeClass('hidden');
+			$("#perp_errors").addClass( "alert alert-danger fade in" );
+		}
+		
+	}
+});
+$('.remove_perp_row').live('click', function(e){
+	var tid = $(this).attr("id");
+	var tval = $(this).attr("rel");
+	$("#trd_"+tid).remove();
+	var aperps = $('#all_perps').val();
+	var obj_perps = JSON.parse(aperps);
+	var tvals = JSON.parse(tval);
+	//var index = obj_perps.indexOf(tvals);
+	var tvid = parseInt(tid);
+	var index = obj_perps.findIndex(tvals => tvals.item_id === tvid);
+    if (index !== -1) obj_perps.splice(index, 1);
+    if (index !== -1) all_perps.splice(index, 1);
+	$('input[name=all_perps]').val(JSON.stringify(obj_perps));
+	var msg = 'Perpetrator removed from grid Successfully.'
+	$('#perp_errors').html(msg).removeClass('hidden');
+	$("#perp_errors").addClass( "alert alert-success fade in" );
+});
+
+let parent_father = {};
+let parent_mother = {};
+    {% for guardian in guardians %}
+        {% if guardian.relationship == 'CGPF' %}
+            parent_father.first_name = '{{ guardian.guardian_person.first_name }}';
+            parent_father.surname = '{{ guardian.guardian_person.surname }}';
+            parent_father.other_name = '{{ guardian.guardian_person.other_name }}';
+        {% endif %}
+        {% if guardian.relationship == 'CGPM' %}
+            parent_mother.first_name = '{{ guardian.guardian_person.first_name }}';
+            parent_mother.surname = '{{ guardian.guardian_person.surname }}';
+            parent_mother.other_name = '{{ guardian.guardian_person.other_name }}';
+        {% endif %}
+    {% endfor %}
+
+$('#case_reporter').change(function () {
+    $('#case_reporter_first_name').val("");
+    $('#case_reporter_surname').val("");
+    $('#case_reporter_other_names').val("");
+let optionSelected = $("option:selected", this);
+let valueSelected = this.value;
+if (valueSelected === 'CRFA') {
+    $('#case_reporter_first_name').val(parent_father.first_name);
+    $('#case_reporter_surname').val(parent_father.surname);
+    $('#case_reporter_other_names').val(parent_father.other_name);
+}
+if (valueSelected === 'CRMO') {
+    $('#case_reporter_first_name').val(parent_mother.first_name);
+    $('#case_reporter_surname').val(parent_mother.surname);
+    $('#case_reporter_other_names').val(parent_mother.other_name);
+}
+});
+
+$('#perpetrator_relationship').change(function () {
+    $('#perpetrator_first_name').val("");
+    $('#perpetrator_surname').val("");
+    $('#perpetrator_other_names').val("");
+    let optionSelected = $("option:selected", this);
+    let valueSelected = this.value;
+    if (valueSelected === 'CGPF') {
+        $('#perpetrator_first_name').val(parent_father.first_name);
+        $('#perpetrator_surname').val(parent_father.surname);
+        $('#perpetrator_other_names').val(parent_father.other_name);
+    }
+    if (valueSelected === 'CGPM') {
+        $('#perpetrator_first_name').val(parent_mother.first_name);
+        $('#perpetrator_surname').val(parent_mother.surname);
+        $('#perpetrator_other_names').val(parent_mother.other_name);
+    }
+});
+
+$('#perp_relation').change(function () {
+    $('#perp_first_name').val("");
+    $('#perp_surname').val("");
+    $('#perp_other_names').val("");
+    let optionSelected = $("option:selected", this);
+    let valueSelected = this.value;
+    if (valueSelected === 'CGPF') {
+        $('#perp_first_name').val(parent_father.first_name);
+        $('#perp_surname').val(parent_father.surname);
+        $('#perp_other_names').val(parent_father.other_name);
+    }
+    if (valueSelected === 'CGPM') {
+        $('#perp_first_name').val(parent_mother.first_name);
+        $('#perp_surname').val(parent_mother.surname);
+        $('#perp_other_names').val(parent_mother.other_name);
+    }
+});
+</script>
 {% endblock %}

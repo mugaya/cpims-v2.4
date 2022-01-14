@@ -1,10 +1,12 @@
 """Common functions for authentication module."""
+from datetime import datetime, timedelta
 from django.utils import timezone
 
-from .models import CPOVCRole, CPOVCUserRoleGeoOrg
+from .models import CPOVCRole, CPOVCUserRoleGeoOrg, CPOVCProfile
 from cpovc_main.models import RegTemp
 from cpovc_registry.models import (
     RegPersonsGeo, RegPersonsOrgUnits, RegOrgUnit)
+from .perms import dates
 
 
 def get_allowed_units_county(user_id):
@@ -24,9 +26,9 @@ def get_allowed_units_county(user_id):
                     ex_orgs[geo_org['org_unit_id']].append(geo_org['group_id'])
                 else:
                     ex_orgs[geo_org['org_unit_id']] = [geo_org['group_id']]
-    except Exception, e:
+    except Exception as e:
         error = 'Error getting persons orgs/sub-county groups - %s' % (str(e))
-        print error
+        print(error)
     else:
         return ex_areas, ex_orgs
 
@@ -43,9 +45,9 @@ def get_groups(grp_prefix='group_'):
             if group_id not in disallowed_group:
                 groups[group['group_ptr_id']] = group_id
 
-    except Exception, e:
+    except Exception as e:
         error = 'Error getting groups - %s' % (str(e))
-        print error
+        print(error)
     else:
         return groups
 
@@ -56,9 +58,9 @@ def get_group_geos_org(user_id):
         result = CPOVCUserRoleGeoOrg.objects.filter(
             user_id=user_id, is_void=False).values(
                 'area_id', 'group_id', 'org_unit_id')
-    except Exception, e:
+    except Exception as e:
         error = 'Error getting geo/orgs by groups - %s' % (str(e))
-        print error
+        print(error)
     else:
         return result
 
@@ -71,9 +73,9 @@ def remove_group_geo_org(user_id, group_id, area_id, org_unit_id):
             area_id=area_id, org_unit_id=org_unit_id)
         geo_orgs.is_void = True
         geo_orgs.save(update_fields=['is_void'])
-    except Exception, e:
+    except Exception as e:
         error = 'Error removing org unit -%s' % (str(e))
-        print error
+        print(error)
         return None
     else:
         return geo_orgs
@@ -94,9 +96,9 @@ def save_group_geo_org(user_id, group_id, area_id, org_unit_id):
             defaults={'area_id': area_id, 'org_unit_id': org_unit_id,
                       'user_id': user_id, 'group_id': group_id,
                       'is_void': False},)
-    except Exception, e:
+    except Exception as e:
         error = 'Error searching org unit -%s' % (str(e))
-        print error
+        print(error)
         return None
     else:
         return geo_org_perm, ctd
@@ -109,8 +111,8 @@ def save_temp_data(user_id, page_id, page_data):
             user_id=user_id, page_id=page_id,
             defaults={'data': str(page_data), 'created_at': timezone.now(),
                       'user_id': user_id, 'page_id': page_id},)
-    except Exception, e:
-        print 'save tmp error - %s' % (str(e))
+    except Exception as e:
+        print('save tmp error - %s' % (str(e)))
         pass
 
 
@@ -126,8 +128,8 @@ def check_national(user):
             return False
         else:
             return True
-    except Exception, e:
-        print 'check national error - %s' % (str(e))
+    except Exception as e:
+        print('check national error - %s' % (str(e)))
         return False
 
 
@@ -142,11 +144,13 @@ def get_attached_units(user):
             person_id=person_id, is_void=False)
         if person_orgs:
             reg_pri, reg_ovc, reg_pri_name = 0, False, ''
+            reg_type_id = ''
             all_roles, all_ous = [], []
             for p_org in person_orgs:
                 p_roles = []
                 org_id = p_org.org_unit_id
                 org_name = p_org.org_unit.org_unit_name
+                org_type = str(p_org.org_unit.org_unit_type_id)
                 reg_assist = p_org.reg_assistant
                 if reg_assist:
                     p_roles.append('REGA')
@@ -155,6 +159,7 @@ def get_attached_units(user):
                 if reg_prim:
                     reg_pri = org_id
                     reg_pri_name = org_name
+                    reg_type_id = org_type
                 reg_ovc = p_org.org_unit.handle_ovc
                 if reg_ovc:
                     p_roles.append('ROVC')
@@ -167,12 +172,13 @@ def get_attached_units(user):
             allous = ','.join(all_ous)
             vals = {'perms': orgs, 'primary_ou': reg_pri,
                     'attached_ou': allous, 'perms_ou': allroles,
-                    'reg_ovc': reg_ovc, 'primary_name': reg_pri_name}
+                    'reg_ovc': reg_ovc, 'primary_name': reg_pri_name,
+                    'org_type': reg_type_id}
             return vals
         else:
             return {}
-    except Exception, e:
-        print 'get attached units error - %s' % (str(e))
+    except Exception as e:
+        print('get attached units error - %s' % (str(e)))
         return {}
 
 
@@ -182,9 +188,9 @@ def get_parent_unit(org_ids):
         # print org_ids
         orgs = RegOrgUnit.objects.filter(
             id__in=org_ids).values_list('parent_org_unit_id', flat=True)
-        print 'Check Org Unit level - %s' % (str(orgs))
+        print('Check Org Unit level - %s' % (str(orgs)))
     except Exception as e:
-        print 'No parent unit - %s' % (str(e))
+        print('No parent unit - %s' % (str(e)))
         return []
     else:
         return orgs
@@ -222,7 +228,44 @@ def get_orgs_tree(org_id):
                     if any(is_dcs):
                         level = 3
     except Exception as e:
-        print 'error with tree - %s' % (str(e))
+        print('error with tree - %s' % (str(e)))
         return 1, {}
     else:
         return level, orgs
+
+
+def get_profile(request, user_id, item='section_id'):
+    """Method to get an item from profile."""
+    try:
+        profile = CPOVCProfile.objects.get(user_id=user_id)
+        details = eval(profile.details)
+    except Exception:
+        return ''
+    else:
+        if item in details:
+            return details[item]
+        else:
+            return details
+
+
+def get_holiday(request):
+    """Method to get holidays."""
+    try:
+        today = datetime.now()
+        kesho = today + timedelta(days=1)
+        todate = str(today.strftime("%d-%b"))
+        evedate = str(kesho.strftime("%d-%b"))
+        # Get the Holiday
+        fday = str(today.strftime("%a %d, %B %Y"))
+        h_prefix = 'Today is'
+        holiday = dates[todate] if todate in dates else None
+        if not holiday:
+            h_prefix += ' eve of'
+            holiday = dates[evedate] if evedate in dates else None
+        if holiday:
+            fday = '%s %s' % (h_prefix, holiday)
+    except Exception as e:
+        print('Error getting holiday - %s' % (e))
+        return ''
+    else:
+        return fday

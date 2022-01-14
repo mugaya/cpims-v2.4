@@ -17982,5 +17982,149 @@
             "item_description": "Application Not Granted", 
             "item_category": "Application Outcome Type"
         }
+    }, 
+    {
+        "pk": 1125, 
+        "model": "cpovc_main.SetupList", 
+        "fields": {
+            "the_order": 10, 
+            "user_configurable": "False", 
+            "field_name": "contact_detail_type_id", 
+            "item_id": "CPWS", 
+            "is_void": "False", 
+            "item_sub_category": "", 
+            "item_description_short": "Website", 
+            "sms_keyword": "False", 
+            "item_description": "Website Address", 
+            "item_category": "Contact detail"
+        }
+    }, 
+    {
+        "pk": 1126, 
+        "model": "cpovc_main.SetupList", 
+        "fields": {
+            "the_order": 1, 
+            "user_configurable": "False", 
+            "field_name": "ctip_service_provider", 
+            "item_id": "SPCH", 
+            "is_void": "False", 
+            "item_sub_category": "", 
+            "item_description_short": "Children", 
+            "sms_keyword": "False", 
+            "item_description": "Children", 
+            "item_category": "CTiP Services"
+        }
+    }, 
+    {
+        "pk": 1127, 
+        "model": "cpovc_main.SetupList", 
+        "fields": {
+            "the_order": 2, 
+            "user_configurable": "False", 
+            "field_name": "ctip_service_provider", 
+            "item_id": "SPSH", 
+            "is_void": "False", 
+            "item_sub_category": "", 
+            "item_description_short": "Shelter", 
+            "sms_keyword": "False", 
+            "item_description": "Shelter", 
+            "item_category": "CTiP Services"
+        }
+    }, 
+    {
+        "pk": 1128, 
+        "model": "cpovc_main.SetupList", 
+        "fields": {
+            "the_order": 3, 
+            "user_configurable": "False", 
+            "field_name": "ctip_service_provider", 
+            "item_id": "SPBN", 
+            "is_void": "False", 
+            "item_sub_category": "", 
+            "item_description_short": "Basic Needs", 
+            "sms_keyword": "False", 
+            "item_description": "Basic Needs", 
+            "item_category": "CTiP Services"
+        }
+    }, 
+    {
+        "pk": 1129, 
+        "model": "cpovc_main.SetupList", 
+        "fields": {
+            "the_order": 4, 
+            "user_configurable": "False", 
+            "field_name": "ctip_service_provider", 
+            "item_id": "SPCS", 
+            "is_void": "False", 
+            "item_sub_category": "", 
+            "item_description_short": "Counselling", 
+            "sms_keyword": "False", 
+            "item_description": "Counselling", 
+            "item_category": "CTiP Services"
+        }
+    }, 
+    {
+        "pk": 1130, 
+        "model": "cpovc_main.SetupList", 
+        "fields": {
+            "the_order": 5, 
+            "user_configurable": "False", 
+            "field_name": "ctip_service_provider", 
+            "item_id": "SPMA", 
+            "is_void": "False", 
+            "item_sub_category": "", 
+            "item_description_short": "Medical Assistance", 
+            "sms_keyword": "False", 
+            "item_description": "Medical Assistance", 
+            "item_category": "CTiP Services"
+        }
+    }, 
+    {
+        "pk": 1131, 
+        "model": "cpovc_main.SetupList", 
+        "fields": {
+            "the_order": 6, 
+            "user_configurable": "False", 
+            "field_name": "ctip_service_provider", 
+            "item_id": "SPLA", 
+            "is_void": "False", 
+            "item_sub_category": "", 
+            "item_description_short": "Legal Assistance", 
+            "sms_keyword": "False", 
+            "item_description": "Legal Assistance", 
+            "item_category": "CTiP Services"
+        }
+    }, 
+    {
+        "pk": 1132, 
+        "model": "cpovc_main.SetupList", 
+        "fields": {
+            "the_order": 7, 
+            "user_configurable": "False", 
+            "field_name": "ctip_service_provider", 
+            "item_id": "SPSK", 
+            "is_void": "False", 
+            "item_sub_category": "", 
+            "item_description_short": "Skills", 
+            "sms_keyword": "False", 
+            "item_description": "Skills", 
+            "item_category": "CTiP Services"
+        }
+    }, 
+    {
+        "pk": 1133, 
+        "model": "cpovc_main.SetupList", 
+        "fields": {
+            "the_order": 8, 
+            "user_configurable": "False", 
+            "field_name": "ctip_service_provider", 
+            "item_id": "SPOS", 
+            "is_void": "False", 
+            "item_sub_category": "", 
+            "item_description_short": "Other Services", 
+            "sms_keyword": "False", 
+            "item_description": "Other Services", 
+            "item_category": "CTiP Services"
+        }
     }
 ]

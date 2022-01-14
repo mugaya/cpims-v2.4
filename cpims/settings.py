@@ -10,17 +10,9 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 SECRET_KEY = 'h34yo5l8c8!edb%^b@3j-i^gc$e)fcjnw_9jm4a^%jbq&*41+@'
 
+DEBUG = True
 
 ALLOWED_HOSTS = ['*']
-
-cpims_db_host = os.environ.get('CPIMS_HOST') if os.environ.get('CPIMS_HOST') else 'localhost'
-cpims_db_pass = os.environ.get('CPIMS_PASSWORD') if os.environ.get('CPIMS_PASSWORD') else 'Xaen!ee8'
-cpims_db_instance = os.environ.get('CPIMS_DB') if os.environ.get('CPIMS_DB') else 'cpims'
-cpims_db_port = os.environ.get('CPIMS_PORT') if os.environ.get('CPIMS_PORT') else '5432'
-cpims_db_user = os.environ.get('CPIMS_DBUSER') if os.environ.get('CPIMS_DBUSER') else 'cpimsdbuser'
-cpims_debug = eval(os.environ.get('CPIMS_DEBUG')) if os.environ.get('CPIMS_DEBUG') else False
-
-DEBUG = cpims_debug
 
 INSTALLED_APPS = (
     'django.contrib.admin',
@@ -29,17 +21,24 @@ INSTALLED_APPS = (
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django.contrib.humanize',
     'cpovc_auth',
     'cpovc_registry',
     'cpovc_main',
     'cpovc_forms',
     'cpovc_gis',
-    #'cpovc_access',
-    'cpovc_settings',
-    'crispy_forms',
+    'cpovc_access',
     'cpovc_ovc',
-    'import_export',
+    'cpovc_settings',
+    'cpovc_manage',
+    'cpovc_reports',
+    'cpovc_help',
+    'cpovc_ctip',
+    'cpovc_afc',
+    'notifications',
+    'crispy_forms',
     'rest_framework',
+    'rest_framework.authtoken',
 )
 
 MIDDLEWARE_CLASSES = (
@@ -52,7 +51,7 @@ MIDDLEWARE_CLASSES = (
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'django.middleware.security.SecurityMiddleware',
-    #'cpovc_main.middleware.SqlPrintingMiddleware',
+    # 'cpovc_main.middleware.SqlPrintingMiddleware',
     'cpovc_auth.middleware.UserRestrictMiddleware',
     'cpovc_access.middleware.FailedLoginMiddleware',
 )
@@ -80,18 +79,11 @@ WSGI_APPLICATION = 'cpims.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql_psycopg2',
-        'NAME': cpims_db_instance,
-        'USER': cpims_db_user,
-        'PASSWORD': cpims_db_pass,
-        'HOST': cpims_db_host,
-        'PORT': cpims_db_port, },
-    'reporting': {
-        'ENGINE': 'django.db.backends.postgresql_psycopg2',
-        'NAME': cpims_db_instance,
-        'USER': cpims_db_user,
-        'PASSWORD': cpims_db_pass,
-        'HOST': '41.89.94.104',
-        'PORT': cpims_db_port, }
+        'NAME': 'cpims_live',
+        'USER': 'cpimsdbuser',
+        'PASSWORD': 'Xaen!ee8',
+        'HOST': '127.0.0.1',
+        'PORT': '5432', }
 }
 
 LANGUAGE_CODE = 'en-us'
@@ -131,7 +123,7 @@ EMAIL_USE_TLS = True
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_HOST_USER = 'cpimskenya@gmail.com'
-EMAIL_HOST_PASSWORD = 'P@ss#2016'
+EMAIL_HOST_PASSWORD = 'WHfJk5F4eKutLQ6'
 
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 SERVER_EMAIL = EMAIL_HOST_USER
@@ -141,11 +133,15 @@ SESSION_COOKIE_AGE = 3 * 60 * 60
 SESSION_SAVE_EVERY_REQUEST = True
 
 REST_FRAMEWORK = {
-    # Use Django's standard `django.contrib.auth` permissions,
-    # or allow read-only access for unauthenticated users.
-    'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.DjangoModelPermissionsOrAnonReadOnly'
-    ]
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.IsAuthenticated',
+    ),
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.TokenAuthentication',
+    ],
+    'DEFAULT_RENDERER_CLASSES': (
+        'rest_framework.renderers.JSONRenderer',
+    )
 }
 
 AXES_LOCKOUT_TEMPLATE = 'locked.html'

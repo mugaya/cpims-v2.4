@@ -68,7 +68,7 @@
             </div>
             <div class="modal-body">
                 <div>
-                    <h4><i class="fa fa-info-circle"></i> <small><b><span id="span_csi_alert" class="dialog_paragraph"></span></b></small></h4>
+                    <h4><i class="fa fa-info-circle"></i> <small><b><span id="span_csi_alert" class="dialog_paragraph"></span></b></small></h4>               
                 </div>
             </div>
             <div class="modal-footer">
@@ -80,53 +80,16 @@
 <!-- #end-csi-warning-dialog -->
 
 <div id="error_message" class="alert alert-danger fade in" style="display: none;" tabindex="1">
-    <!--<span class="close" data-dismiss="alert">×</span>-->
-    <button type="button" class="close" data-hide="alert">&times;</button>
+    <span class="close" data-dismiss="alert">×</span>
     <i class="fa fa-info fa-2x pull-left"></i>
     <span class="invalid-form-message" id="invalid-form-message"></span>
 </div>
 
 <div id="success_message" class="alert alert-success fade in" style="display: none;">
-    <!--<span class="close" data-dismiss="alert">×</span>-->
-    <button type="button" class="close" data-hide="alert">&times;</button>
+    <span class="close" data-dismiss="alert">×</span>
     <i class="fa fa-check fa-2x pull-left"></i>
     <p></p>
 </div>
-
-
-{% if err_msgg  %}
-
-<div class="alert alert-danger" id="error-message-reuse">
-  <a class="close" data-dismiss="alert" href="#">&times;</a>
-  {{ err_msgg }}
-</div>
-
-{% endif %}
-
-<!--<button type="button" class="btn btn-info btn-lg" data-toggle="modal" data-target="#delete-form1a-entry">Open Modal</button>-->
-
-  <!--Confirm form1a delete Modal -->
-
-  <div class="modal fade" id="delete-form1a-entry" style="margin-left: auto; margin-right: auto; width: 50%;" role="dialog">
-    <div class="modal-dialog modal-sm">
-
-      <!-- Modal content-->
-      <div class="modal-content">
-        <div class="modal-header">
-          <button type="button" class="close" data-dismiss="modal">&times;</button>
-          <h4 class="modal-title">Delete Entry</h4>
-        </div>
-        <div class="modal-body">
-          <p style="color: #ff0000; font-size: 16px;">Delete selected entry?</p>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-default btn-default" onclick="deleteForm1aEntry()" data-dismiss="modal">Yes</button>
-          <button type="button" class="btn btn-default btn-primary" data-dismiss="modal">Cancel</button>
-        </div>
-      </div>
-
-    </div>
-  </div>
 
 <!-- begin row -->
 <div id='case_details' class="row">
@@ -507,7 +470,6 @@
 </div>
 <!-- end row -->
 
-
 {% endblock %}
 
 {% block lazy_javascript_code %}
@@ -585,59 +547,39 @@ function loadForm1aEvents()
                         var event_details = val.event_details;
                         var event_date = val.event_date;
 
-                        if (event_details !==null){
+                        var btnView = 'btnView' + i;
+                        var btnEdit = 'btnEdit' + i;
+                        var btnDelete = 'btnDelete' + i;
+                        var tableRowId = 'tableRowId' + i;
 
-                            var btnView = 'btnView' + i;
-                            var btnEdit = 'btnEdit' + i;
-                            var btnDelete = 'btnDelete' + i;
-                            var tableRowId = 'tableRowId' + i;
+                        //Actions Item
+                        var viewItem = '<button id=' + btnView + ' type="submit" class="btn  btn-sm btn-primary m-r-5"><i class="fa fa-binoculars"></i></button>';
+                        var editItem = '<button id=' + btnEdit + ' type="submit" class="btn  btn-sm btn-primary m-r-5"><i class="fa fa-pencil"></i></button>';
+                        var deleteItem = '<button id=' + btnDelete + ' type="submit" class="btn  btn-sm btn-danger m-r-5"><i class="fa fa-trash"></i></button>';
 
-                            //Actions Item
-                            var viewItem = '<button id=' + btnView + ' type="submit" class="btn  btn-sm btn-primary m-r-5"><i class="fa fa-binoculars"></i></button>';
-                            var editItem = '<button id=' + btnEdit + ' data-event_type='+event_type+' data-event_pk='+event_pk+' data-core_service="" data-core_service_status="" type="submit" class="btn  btn-sm btn-primary m-r-5"><i class="fa fa-pencil"></i></button>';
-                            var deleteItem = '<button id=' + btnDelete + ' data-event_type='+event_type+' data-event_pk='+event_pk+' type="submit" class="btn  btn-sm btn-danger m-r-5"><i class="fa fa-trash"></i></button>';
+                        // Append to rows to table rows
+                        $("#f1a_events_data_table tbody").append('<tr id=' + tableRowId + '>' + 
+                            '<td width="25%"><h6>' + event_type + '</h6></td>' +
+                            '<td width="25%"><h6>' + event_details + '</h6></td>' +  
+                            '<td width="25%"><h6>' + event_date + '</h6></td>' +
+                            '<td>' +
+                            /*' + viewItem + '' + **/
+                            '' + editItem + '' +
+                            '' + deleteItem + '' +
+                            '</td></tr>');
 
-                            // Append to rows to table rows
-                            $("#f1a_events_data_table tbody").append('<tr id=' + tableRowId + '>' +
-                                '<td width="25%"><h6>' + event_type + '</h6></td>' +
-                                '<td width="25%"><h6>' + event_details + '</h6></td>' +
-                                '<td width="25%"><h6>' + event_date + '</h6></td>' +
-                                '<td>' +
-                                /*' + viewItem + '' + **/
-                                '' + editItem + '' +
-                                '' + deleteItem + '' +
-                                '</td></tr>');
+                        // Add Click Event To Buttons
+                        $("#" + btnView + "").click(function(e)
+                        {
+                        });
 
-                            // Add Click Event To Buttons
-                            $("#" + btnView + "").click(function(e)
-                            {
-                            });
+                        $("#" + btnEdit + "").click(function(e)
+                        {
+                        });
 
-                            $("#" + btnEdit + "").click(function(e)
-                            {   var personId=$('#person').val();
-                                var btn_event_type=$(this).attr("data-event_type");
-                                var btn_event_pk=$(this).attr("data-event_pk");
-
-                                var url = "{% url 'edit_form1a' id=1234 btn_event_type=2345 btn_event_pk=3456 %}".replace(/1234/, personId.toString()).replace(/2345/, btn_event_type.toString()).replace(/3456/, btn_event_pk.toString());
-
-                                window.open(url,"_self");
-                            });
-
-
-                            $("#" + btnDelete + "").click(function(e)
-                            {   var personId=$('#person').val();
-                                var btn_event_type=$(this).attr("data-event_type");
-                                var btn_event_pk=$(this).attr("data-event_pk");
-
-                                var url = "{% url 'delete_form1a' id=1234 btn_event_type=2345 btn_event_pk=3456 %}".replace(/1234/, personId.toString()).replace(/2345/, btn_event_type.toString()).replace(/3456/, btn_event_pk.toString());
-                                window.form1aUrlToDelete=url;
-                                window.eventTypeToDelete=btn_event_type.toString();
-                                $("#delete-form1a-entry").modal();
-
-                                //window.open(url,"_self");
-                            });
-
-                        }
+                        $("#" + btnDelete + "").click(function(e)
+                        {
+                        });
                     });
                     
                 },
@@ -711,7 +653,7 @@ function saveForm1A(x)
     // Assessment
     if(x == 1)
     { 
-        values['args'] = 1;
+        values['args'] = 1; 
         error_msg='Error saving assessment - '; 
         error_div = '#error_assessment';
 
@@ -736,7 +678,6 @@ function saveForm1A(x)
                             $(".alert-danger").hide();
                             $('#success_message').css({'display': 'block'});
                             $('#success_message p').html(val.msg);
-                            $('#error-message-reuse').css({'display': 'none'});
                         });
                         loadForm1aEvents();
                         resetForm1A(1);
@@ -793,7 +734,6 @@ function saveForm1A(x)
                             $(".alert-danger").hide();
                             $('#success_message').css({'display': 'block'});
                             $('#success_message p').html(val.msg);
-                            $('#error-message-reuse').css({'display': 'none'});
                         });
                         loadForm1aEvents();
                         resetForm1A(2);
@@ -851,7 +791,6 @@ function saveForm1A(x)
                             $(".alert-danger").hide();
                             $('#success_message').css({'display': 'block'});
                             $('#success_message p').html(val.msg);
-                            $('#error-message-reuse').css({'display': 'none'});
                         });
                         loadForm1aEvents();
                         resetForm1A(3);
@@ -909,7 +848,6 @@ function saveForm1A(x)
                             $(".alert-danger").hide();
                             $('#success_message').css({'display': 'block'});
                             $('#success_message p').html(val.msg);
-                            $('#error-message-reuse').css({'display': 'none'});
                         });
                         loadForm1aEvents();
                         resetForm1A(4);
@@ -1820,46 +1758,5 @@ $("#olmis_priority_hes").change(function(event)
 { 
 	displayVals(1, 'olmis_priority_hes');
 });
-
-function deleteForm1aEntry(){
-    $('#delete-form1a-entry').modal('hide');
-
-    $.ajax({
-                url: window.form1aUrlToDelete,
-                dataType: 'json',
-                method: 'GET',
-                success: function(result)
-                {
-                    if (result[0].msg.includes("30")){
-                        $('#error_message').css({'display': 'block'});
-                        $('#success_message').css({'display': 'none'});
-                        $('#error-message-reuse').css({'display': 'none'});
-                        $('#error_message span').html(result[0].msg);
-
-                    }else{
-                        $('#success_message').css({'display': 'block'});
-                        $('#success_message p').html(result[0].msg);
-                        $('#error-message-reuse').css({'display': 'none'});
-                        $('#error_message').css({'display': 'none'});
-                         var personId=$('#person').val();
-                         var url = "{% url 'form1a_events' id=1234%}".replace(/1234/, personId.toString());
-                         window.open(url,"_self");
-
-                    }
-                    console.log("got 2");
-                },
-                error: function(xhr, status, error){
-                    $('#error_message').css({'display': 'block'});
-                    $('#error_message span').html(result[0].msg);
-                }
-            });
-}
-
-$(function(){
-    $("[data-hide]").on("click", function(){
-        $(this).closest("." + $(this).attr("data-hide")).hide();
-    });
-});
-
 </script>	
 {% endblock %}

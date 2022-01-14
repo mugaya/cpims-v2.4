@@ -28,3 +28,24 @@ class AccessAppConfig(AppConfig):
 
     name = 'cpovc_access'
     verbose_name = 'Access Management'
+
+
+class FormsAppConfig(AppConfig):
+    """docstring for FormsAppConfig"""
+
+    name = 'cpovc_forms'
+    verbose_name = 'Forms Management'
+
+
+class RegReportConfig(AppConfig):
+    """docstring for FormsAppConfig"""
+
+    name = 'cpovc_reports'
+    verbose_name = 'Reports Management'
+
+
+class RegHelpConfig(AppConfig):
+    """docstring for FormsAppConfig"""
+
+    name = 'cpovc_help'
+    verbose_name = 'Help, FAQ and Documentation'

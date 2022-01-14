@@ -26,8 +26,16 @@ report_types_datim = (('', 'Select type'), ('S', 'Semi Annual'),
 report_types_other = (('', 'Select type'), ('S', 'Semi Annual'),
                       ('Y', 'Annual'), ('O', 'Other'))
 
-report_vars = (('', 'Select Variable'), (1, 'Organisation Unit'),
-               (2, 'Institution Register'))
+report_vars = (('', 'Select Report'), (1, 'Organisation Unit'),
+               (2, 'Institution Register'),
+               (3, 'Case Load Summary'),
+               (4, 'Excel Tool A'), (5, 'Missing Children'),
+               (6, 'Violence Against Children (VAC)'),
+               (7, 'Children in Emergencies'),
+               (8, 'Services by Domain'),
+               (9, 'Institution Population (Detailed)'),
+               (10, 'Trafficking in Persons (Old)'),
+               (11, 'Trafficking in Persons'))
 # (3, 'Case category'))
 inst_vars = (('', 'Select Type'),
              ('TNCI', 'Charitable Children Institution'),

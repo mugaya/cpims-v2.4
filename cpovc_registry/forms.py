@@ -20,7 +20,8 @@ from cpovc_access.forms import StrictSetPasswordForm
 my_list = []
 for country in OCOUNTRIES:
     my_list.append((country, OCOUNTRIES[country]))
-country_list = list(my_list)
+my_list_sorted = sorted(my_list, key=lambda x: x[1])
+country_list = list(my_list_sorted)
 
 
 person_type_list = get_list('person_type_id', 'Please Select')
@@ -169,6 +170,7 @@ class RegistrationForm(forms.Form):
     ward_list_wb = get_geo_list(all_list, 'GWRD', True)
 
     REGION_CHOICES = ((0, 'National'), (1, 'County'), (2, 'Sub County'))
+    NATIONALITY_CHOICES = ((0, 'Kenyan'), (1, 'Foreigner'))
 
     working_in_region = forms.ChoiceField(
         choices=REGION_CHOICES,
@@ -304,6 +306,10 @@ class RegistrationForm(forms.Form):
         attrs={'placeholder': _('National ID'),
                'class': 'form-control',
                'id': 'national_id'}))
+    passport_no = forms.CharField(widget=forms.TextInput(
+        attrs={'placeholder': _('Passport Number'),
+               'class': 'form-control',
+               'id': 'passport_no'}))
     staff_id = forms.CharField(widget=forms.TextInput(
         attrs={'placeholder': _('Staff Number'),
                'class': 'form-control',
@@ -469,6 +475,26 @@ class RegistrationForm(forms.Form):
         widget=forms.Select(
             attrs={'class': 'form-control',
                    'id': 'country_id'}))
+
+    # added for CTIP
+    living_in_nationality = forms.ChoiceField(
+        choices=NATIONALITY_CHOICES,
+        initial=0,
+        widget=forms.RadioSelect(
+            renderer=RadioCustomRenderer,
+            attrs={'id': 'living_in_nationality',
+                   'data-parsley-errors-container': "#nationality_error"}))
+
+    living_in_country = forms.ChoiceField(
+        choices=country_list,
+        widget=forms.Select(
+            attrs={'class': 'form-control',
+                   'id': 'living_in_country'}))
+
+    living_in_city = forms.CharField(widget=forms.TextInput(
+        attrs={'placeholder': _('City / Town'),
+               'class': 'form-control',
+               'id': 'living_in_city'}))
 
     class Meta:
         """Override model class."""
