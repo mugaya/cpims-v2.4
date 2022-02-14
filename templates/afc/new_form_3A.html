@@ -70,8 +70,9 @@ form#new-form-b ul {
                     <input type="hidden" name="form_id" value="{{ form_id }}">
                     <input type="hidden" name="case_id" value="{{ case.case_id }}">
                     <input type="hidden" name="person_id" value="{{ case.person.id }}">
+                    <input type="hidden" name="care_id" value="{{ case.care_id }}">
                     <div class="form-group">
-                        <label class="col-md-3 control-label"> Names of Child [First Name, Surname, Other Names]</label>
+                        <label class="col-md-3 control-label"> Names of Child</label>
                         <div class="col-md-8">
                             {{ case.person.first_name }} {{ case.person.surname }}
                         </div>
@@ -87,37 +88,28 @@ form#new-form-b ul {
                         </div>
                     </div>
                     <div class="form-group">
-                        <label class="col-md-3 control-label">Consent details</label>
+                        <label class="col-md-3 control-label">Consent Type</label>
                         <div class="col-md-8">
-                            <p>  
-                            I consent to receive the service(s), which are provided by the National Referral Mechanism for victims of
-                            human trafficking in Kenya. I understand that this application does not guarantee I will receive all the services I
-                            desire. I also consent to providing all documents and information required for the purposes of delivering these
-                            services. I understand that the personal information I provide is confidential. The release of any information
-                            regarding my involvement with the NRM may occur only with my written and signed consent.
-                            </p>
-                            <p>
-                            I declare to have understood the above and therefore have voluntarily signed this form without any form of
-                            force or coercion.
-                            </p>
                         </div>
                     </div>
                     <div class="form-group">
-                        <label class="col-md-3 control-label">Date</label>
-                        <div class="col-md-4">
-                            {{ form.consent_date }}
-                        </div>
-                        <div class="col-md-4">
+                        <label class="col-md-3 control-label">Consent details</label>
+                        <div class="col-md-8">
+                            <p>** As indicated in the specific forms.</p>
                         </div>
                     </div>
                     <div class="form-group">
                         <label class="col-md-3 control-label">Consent Provided</label>
                         <div class="col-md-4">
-                            {{ form.has_consent }}
+                            {{ form.qf3A1_rdo }}
+                            <span id="qf3A1_rdo_error"></span>
                         </div>
-                        <div class="col-md-4">
-
-                        </div>
+                        <div class="col-md-4"></div>
+                    </div>
+                    <div class="form-group">
+                        <label class="col-md-3 control-label">Date</label>
+                        <div class="col-md-4">{{ form.event_date }}</div>
+                        <div class="col-md-4"></div>
                     </div>
                     
                     <div class="form-group">
@@ -142,7 +134,7 @@ form#new-form-b ul {
 
 <script>
 $(document).ready(function() {
-    $('#consent_date').datepicker({ endDate: '0y', format: 'dd-M-yyyy' });
+    $('#event_date').datepicker({ endDate: '0y', format: 'dd-M-yyyy' });
 });
 
 </script>

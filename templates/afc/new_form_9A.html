@@ -70,6 +70,7 @@ form#new-form-b ul {
                     <input type="hidden" name="form_id" value="{{ form_id }}">
                     <input type="hidden" name="case_id" value="{{ case.case_id }}">
                     <input type="hidden" name="person_id" value="{{ case.person.id }}">
+                    <input type="hidden" name="care_id" value="{{ case.care_id }}">
                     <div class="form-group">
                         <label class="col-md-2 control-label">Child Names</label>
                         <div class="col-md-3">
@@ -89,19 +90,108 @@ form#new-form-b ul {
                         <div class="col-md-3">{{ case.person.age }}</div>
                         <div class="col-md-1"></div>
                     </div>
+                    <hr>
+                    <div class="form-group">
+                        <label class="col-md-5 control-label">Reason for case closure</label>
+                        <div class="col-md-2">
+                            {{ form.qf9A1_rdo }}
+                            <span id="qf2A1_rdo_error"></span>
+                        </div>
+                        <label class="col-md-2 control-label"></label>
+                        <div class="col-md-2"></div>
+                        <div class="col-md-1"></div>
+                    </div>
+                    <div class="form-group">
+                        <label class="col-md-5 control-label">Children providing feedback according to their evolving capacity (Satisfied, not satisfied)</label>
+                        <div class="col-md-2">
+                            {{ form.qf9A1_rdo }}
+                            <span id="qf2A1_rdo_error"></span>
+                        </div>
+                        <label class="col-md-2 control-label"></label>
+                        <div class="col-md-2"></div>
+                        <div class="col-md-1"></div>
+                    </div>
+                    <div class="form-group">
+                        <label class="col-md-5 control-label">Caregiver providing feedback according to their evolving capacity (Satisfied, not satisfied)</label>
+                        <div class="col-md-2">
+                            {{ form.qf9A1_rdo }}
+                            <span id="qf2A1_rdo_error"></span>
+                        </div>
+                        <label class="col-md-2 control-label"></label>
+                        <div class="col-md-2"></div>
+                        <div class="col-md-1"></div>
+                    </div>
+
+                    <fieldset>
+                        <legend class="pull-left width-full">CASE CLOSURE CHECKLIST</legend>
+
+                        <div class="form-group">
+                            <label class="col-md-5 control-label">1. Final visit scheduled with the child and the family.</label>
+                            <div class="col-md-2">
+                                {{ form.qf9A1_rdo }}
+                                <span id="qf9A1_rdo_error"></span>
+                            </div>
+                            <div class="col-md-2">{{ form.qf9A2_txt }}</div>
+                            <div class="col-md-2"></div>
+                        </div>
+                        <div class="form-group">
+                            <label class="col-md-5 control-label">2. Recommendation for closure made by caseworker; closure approved by alternative care committee.</label>
+                            <div class="col-md-2">
+                                {{ form.qf9A1_rdo }}
+                                <span id="qf9A1_rdo_error"></span>
+                            </div>
+                            <div class="col-md-2">{{ form.qf9A2_txt }}</div>
+                            <div class="col-md-2"></div>
+                        </div>
+                        <div class="form-group">
+                            <label class="col-md-5 control-label">3. Referrals have been completed, and case closure plans have been developed with the child and family. Caseworker has recognized and appreciated the achievements of the child(ren) and family.</label>
+                            <div class="col-md-2">
+                                {{ form.qf9A1_rdo }}
+                                <span id="qf9A1_rdo_error"></span>
+                            </div>
+                            <div class="col-md-2">{{ form.qf9A2_txt }}</div>
+                            <div class="col-md-2"></div>
+                        </div>
+                        <div class="form-group">
+                            <label class="col-md-5 control-label">4. The child(ren) and the family have been informed of available, relevant support services in case support is needed in the future, and contact information has been provided.</label>
+                            <div class="col-md-2">
+                                {{ form.qf9A1_rdo }}
+                                <span id="qf9A1_rdo_error"></span>
+                            </div>
+                            <div class="col-md-2">{{ form.qf9A2_txt }}</div>
+                            <div class="col-md-2"></div>
+                        </div>
+                        <div class="form-group">
+                            <label class="col-md-5 control-label">5. The Sub-County Children’s Officer has reviewed the closure plan and provided final approval</label>
+                            <div class="col-md-2">
+                                {{ form.qf9A1_rdo }}
+                                <span id="qf9A1_rdo_error"></span>
+                            </div>
+                            <div class="col-md-2">{{ form.qf9A2_txt }}</div>
+                            <div class="col-md-2"></div>
+                        </div>
+                        <div class="form-group">
+                            <label class="col-md-5 control-label">6. If the child was removed or referred, copies of the relevant paperwork have been attached to the child’s case file and provided to statutory authority and new care
+placement provider.</label>
+                            <div class="col-md-2">
+                                {{ form.qf9A1_rdo }}
+                                <span id="qf9A1_rdo_error"></span>
+                            </div>
+                            <div class="col-md-2">{{ form.qf9A2_txt }}</div>
+                            <div class="col-md-2"></div>
+                        </div>
+                    </fieldset>
                     
                     <div class="form-group">
-                        <label class="col-md-2 control-label">Date</label>
+                        <label class="col-md-5 control-label">Date of Closure</label>
                         <div class="col-md-2">
-                            {{ form.consent_date }}
+                            {{ form.event_date }}
                         </div>
                         <div class="col-md-4">
                         </div>
                     </div>
-                    
-                    
                     <div class="form-group">
-                        <label class="col-md-2 control-label"></label>
+                        <label class="col-md-5 control-label"></label>
                         <div class="col-md-3">
                             <button type="submit" class="btn btn-sm btn-success">Submit Form {{ form_id }} details</button>
                         </div>
@@ -122,7 +212,7 @@ form#new-form-b ul {
 
 <script>
 $(document).ready(function() {
-    $('#consent_date').datepicker({ endDate: '0y', format: 'dd-M-yyyy' });
+    $('#event_date, .event_date').datepicker({ endDate: '0y', format: 'dd-M-yyyy' });
 });
 
 </script>

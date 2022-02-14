@@ -2,7 +2,7 @@ import uuid
 from django.db import models
 from django.utils import timezone
 
-from cpovc_registry.models import RegPerson
+from cpovc_registry.models import RegPerson, RegOrgUnit
 from cpovc_forms.models import OVCCaseRecord
 
 
@@ -12,10 +12,17 @@ class AFCMain(models.Model):
     case = models.ForeignKey(OVCCaseRecord, on_delete=models.CASCADE)
     case_number = models.CharField(max_length=12, blank=True)
     care_type = models.CharField(max_length=5, blank=True)
-    case_date = models.DateField()
-    person = models.ForeignKey(RegPerson)
+    person = models.ForeignKey(RegPerson, on_delete=models.CASCADE)
+    school_level = models.CharField(max_length=4, null=True)
+    immunization_status = models.CharField(max_length=4, null=True)
+    org_unit = models.ForeignKey(RegOrgUnit, on_delete=models.CASCADE)
     case_status = models.NullBooleanField(null=True, default=None)
     case_stage = models.IntegerField(default=0)
+    case_date = models.DateField()
+    cg_consent = models.BooleanField(default=False)
+    cg_consent_date = models.DateField(null=True, blank=True)
+    ovc_consent = models.BooleanField(default=False)
+    ovc_consent_date = models.DateField(null=True, blank=True)
     timestamp_created = models.DateTimeField(default=timezone.now)
     timestamp_updated = models.DateTimeField(default=timezone.now)
     is_void = models.BooleanField(default=False)

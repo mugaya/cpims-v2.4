@@ -70,6 +70,7 @@ form#new-form-b ul {
                     <input type="hidden" name="form_id" value="{{ form_id }}">
                     <input type="hidden" name="case_id" value="{{ case.case_id }}">
                     <input type="hidden" name="person_id" value="{{ case.person.id }}">
+                    <input type="hidden" name="care_id" value="{{ case.care_id }}">
                     <div class="form-group">
                         <label class="col-md-2 control-label">Child Names</label>
                         <div class="col-md-3">
@@ -89,19 +90,173 @@ form#new-form-b ul {
                         <div class="col-md-3">{{ case.person.age }}</div>
                         <div class="col-md-1"></div>
                     </div>
+
+                    <div class="form-group">
+                        <label class="col-md-2 control-label">Number of visit</label>
+                        <div class="col-md-2">
+                            {{ form.event_date }}
+                        </div>
+                        <div class="col-md-4">
+                        </div>
+                    </div>
+
+                    <fieldset>
+                        <legend>A. CHILD’S WELL-BEING AND PROGRESS</legend>
+                        <div class="form-group">
+                            <label class="col-md-4 control-label">Since our last visit, is there anything that you would like to share with me? Please describe below</label>
+                            <div class="col-md-2">
+                            </div>
+                            <div class="col-md-4">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="col-md-4 control-label">Any major changes in your life? Please describe below (Hint: Look for both positive and negative changes.)</label>
+                            <div class="col-md-2">
+                            </div>
+                            <div class="col-md-4">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="col-md-4 control-label">How have these changes affected you (e.g., how is the child currently coping)?</label>
+                            <div class="col-md-2">
+                            </div>
+                            <div class="col-md-4">
+                            </div>
+                        </div>
+                        <p>Caseworker comments on the child’s overall well-being and progress made toward reintegration</p>
+
+                        <div class="form-group">
+                            <label class="col-md-4 control-label">Health and development</label>
+                            <div class="col-md-2">
+                            </div>
+                            <div class="col-md-4">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="col-md-4 control-label">Psychosocial health and emotional well-being</label>
+                            <div class="col-md-2">
+                            </div>
+                            <div class="col-md-4">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="col-md-4 control-label">Education</label>
+                            <div class="col-md-2">
+                            </div>
+                            <div class="col-md-4">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="col-md-4 control-label">Protection and safety</label>
+                            <div class="col-md-2">
+                            </div>
+                            <div class="col-md-4">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="col-md-4 control-label">Child–caregiver/young adult–mentor relationship and attachment</label>
+                            <div class="col-md-2">
+                            </div>
+                            <div class="col-md-4">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="col-md-4 control-label">Social well-being and community belonging</label>
+                            <div class="col-md-2">
+                            </div>
+                            <div class="col-md-4">
+                            </div>
+                        </div>
+                    </fieldset>
+
+                    <fieldset>
+                        <legend>B. FAMILY’S WELL-BEING AND PROGRESS</legend>
+                        <div class="form-group">
+                            <label class="col-md-4 control-label">Since our last visit, is there anything that you would like to share with me? Please describe below</label>
+                            <div class="col-md-2">
+                            </div>
+                            <div class="col-md-4">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="col-md-4 control-label">Any major changes in your life? Please describe below (Hint: Look for both positive and negative changes.)</label>
+                            <div class="col-md-2">
+                            </div>
+                            <div class="col-md-4">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="col-md-4 control-label">How have these changes affected your family/life</label>
+                            <div class="col-md-2">
+                            </div>
+                            <div class="col-md-4">
+                            </div>
+                        </div>
+                        <p>Caseworker comments on the child’s overall well-being and progress made toward reintegration</p>
+
+                        <div class="form-group">
+                            <label class="col-md-4 control-label">Health and development</label>
+                            <div class="col-md-2">
+                            </div>
+                            <div class="col-md-4">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="col-md-4 control-label">Psychosocial health and emotional well-being</label>
+                            <div class="col-md-2">
+                            </div>
+                            <div class="col-md-4">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="col-md-4 control-label">Education</label>
+                            <div class="col-md-2">
+                            </div>
+                            <div class="col-md-4">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="col-md-4 control-label">Protection and safety</label>
+                            <div class="col-md-2">
+                            </div>
+                            <div class="col-md-4">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="col-md-4 control-label">Child–caregiver/young adult–mentor relationship and attachment</label>
+                            <div class="col-md-2">
+                            </div>
+                            <div class="col-md-4">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="col-md-4 control-label">Social well-being and community belonging</label>
+                            <div class="col-md-2">
+                            </div>
+                            <div class="col-md-4">
+                            </div>
+                        </div>
+                    </fieldset>
                     
                     <div class="form-group">
-                        <label class="col-md-2 control-label">Date</label>
+                        <label class="col-md-4 control-label">Proposed date of next monitoring visit</label>
                         <div class="col-md-2">
-                            {{ form.consent_date }}
+                            {{ form.event_date }}
+                        </div>
+                        <div class="col-md-4">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="col-md-4 control-label">Date of monitoring visit</label>
+                        <div class="col-md-2">
+                            {{ form.event_date }}
                         </div>
                         <div class="col-md-4">
                         </div>
                     </div>
                     
-                    
                     <div class="form-group">
-                        <label class="col-md-2 control-label"></label>
+                        <label class="col-md-4 control-label"></label>
                         <div class="col-md-3">
                             <button type="submit" class="btn btn-sm btn-success">Submit Form {{ form_id }} details</button>
                         </div>

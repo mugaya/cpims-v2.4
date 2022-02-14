@@ -9,6 +9,7 @@
 {% block style_code %}
 <link href="{% static 'plugins/parsley/src/parsley.css' %}" rel="stylesheet" />
 <link href="{% static 'plugins/bootstrap-datepicker/css/datepicker3.css' %}" rel="stylesheet" />
+<link href="{% static 'plugins/bootstrap-wizard/css/bwizard.min.css' %}" rel="stylesheet" />
 <style type="text/css">
 form#new-form-b ul {
       list-style-type: none;
@@ -70,6 +71,7 @@ form#new-form-b ul {
                     <input type="hidden" name="form_id" value="{{ form_id }}">
                     <input type="hidden" name="case_id" value="{{ case.case_id }}">
                     <input type="hidden" name="person_id" value="{{ case.person.id }}">
+                    <input type="hidden" name="care_id" value="{{ case.care_id }}">
                     <div class="form-group">
                         <label class="col-md-2 control-label">Child Names</label>
                         <div class="col-md-3">
@@ -89,19 +91,353 @@ form#new-form-b ul {
                         <div class="col-md-3">{{ case.person.age }}</div>
                         <div class="col-md-1"></div>
                     </div>
-                    
+                    <div id="wizard">
+                        <ol>
+                            <li>
+                                A. HEALTH AND DEVELOPMENT
+                                <small>Child Health and Development.</small>
+                            </li>
+                            <li>
+                                B. EDUCATION
+                                <small>Education details.</small>
+                            </li>
+                            <li>
+                                C. PSYCHOSOCIAL AND EMOTIONAL WELLBEING
+                                <small>Psychosocial and emotional wellbeing.</small>
+                            </li>
+                            <li>
+                                CHILD PERSPECTIVE ON REINTEGRATION
+                                <small>Child Perspective on reintegration</small>
+                            </li>
+                            <li>
+                                ASSESSMENT CONCLUSION AND ACTIONS
+                                <small>Assessment conclusion and actions to address child's needs</small>
+                            </li>                            
+                        </ol>
+                        <!-- begin wizard step-1 -->
+                        <div>
+                            <fieldset>
+                            <legend class="pull-left width-full">A. HEALTH AND DEVELOPMENT</legend>
+
+                                <div class="form-group">
+                                    <label class="col-md-5 control-label">Is the child growing appropriately for his/her age? For example, is he/she walking, speaking, developing self-help skills? (Describe physical skills and needs, intellectual skills and needs, social skills and needs.)</label>
+                                    <div class="col-md-2">
+                                        {{ form.qf1B1_rdo }}
+                                        <span id="qf1B1_rdo_error"></span>
+                                    </div>
+                                    <div class="col-md-4"></div>
+                                    <div class="col-md-1"></div>
+                                </div>
+                                <div class="form-group">
+                                    <label class="col-md-5 control-label">Any history of medical issues/hospitalization? Frequency?</label>
+                                    <div class="col-md-2">
+                                        {{ form.qf1B1_rdo }}
+                                        <span id="qf1B1_rdo_error"></span>
+                                    </div>
+                                    <div class="col-md-4"></div>
+                                    <div class="col-md-1"></div>
+                                </div>
+                                <div class="form-group">
+                                    <label class="col-md-5 control-label">Any current health conditions?</label>
+                                    <div class="col-md-2">
+                                        {{ form.qf1B1_rdo }}
+                                        <span id="qf1B1_rdo_error"></span>
+                                    </div>
+                                    <div class="col-md-4"></div>
+                                    <div class="col-md-1"></div>
+                                </div>
+                                <div class="form-group">
+                                    <label class="col-md-5 control-label">Any chronic health conditions</label>
+                                    <div class="col-md-2">
+                                        {{ form.qf1B1_rdo }}
+                                        <span id="qf1B1_rdo_error"></span>
+                                    </div>
+                                    <div class="col-md-4"></div>
+                                    <div class="col-md-1"></div>
+                                </div>
+                                <div class="form-group">
+                                    <label class="col-md-5 control-label">Currently on any medication?</label>
+                                    <div class="col-md-2">
+                                        {{ form.qf1B1_rdo }}
+                                        <span id="qf1B1_rdo_error"></span>
+                                    </div>
+                                    <div class="col-md-4"></div>
+                                    <div class="col-md-1"></div>
+                                </div>
+                                <div class="form-group">
+                                    <label class="col-md-5 control-label">Immunization status</label>
+                                    <div class="col-md-2">
+                                        {{ form.qf1A4_sdd }}
+                                        <span id="qf1B1_rdo_error"></span>
+                                    </div>
+                                    <div class="col-md-4">If not fully, reason</div>
+                                    <div class="col-md-1"></div>
+                                </div>
+                                <div class="form-group">
+                                    <label class="col-md-5 control-label">Any allergy</label>
+                                    <div class="col-md-2">
+                                        {{ form.qf1B1_rdo }}
+                                        <span id="qf1B1_rdo_error"></span>
+                                    </div>
+                                    <div class="col-md-4"></div>
+                                    <div class="col-md-1"></div>
+                                </div>
+                                <div class="form-group">
+                                    <label class="col-md-5 control-label">Feeding routine and special needs?</label>
+                                    <div class="col-md-2">
+                                        {{ form.qf1B1_rdo }}
+                                        <span id="qf1B1_rdo_error"></span>
+                                    </div>
+                                    <div class="col-md-4"></div>
+                                    <div class="col-md-1"></div>
+                                </div>                                
+                            </fieldset>
+                        </div>
+                        <!-- end wizard step-1 -->
+                        <!-- begin wizard step-2 -->
+                        <div>
+                            <fieldset>
+                            <legend class="pull-left width-full">B. EDUCATION</legend>
+
+                                <div class="form-group">
+                                    <label class="col-md-5 control-label">Previously attended any School?</label>
+                                    <div class="col-md-2">
+                                        {{ form.qf1B1_rdo }}
+                                        <span id="qf1B1_rdo_error"></span>
+                                    </div>
+                                    <div class="col-md-4">If yes name</div>
+                                    <div class="col-md-1"></div>
+                                </div>
+                                <div class="form-group">
+                                    <label class="col-md-2 control-label">School Level</label>
+                                    <div class="col-md-3">
+                                        {{ form.school_level }}
+                                    </div>
+                                    <label class="col-md-2 control-label"></label>
+                                    <div class="col-md-4"></div>
+                                </div>
+                                <div class="form-group" id="school_details_div">
+                                    <label class="col-md-2 control-label">School ID</label>
+                                    <div class="col-md-3">{{ form.school }}</div>
+                                    <label class="col-md-2 control-label">School Name</label>
+                                    <div class="col-md-4">{{ form.school_name }}</div>
+                                </div>
+                                <div class="form-group" id="class_details_div">
+                                    <label class="col-md-2 control-label">Class Level</label>
+                                    <div class="col-md-3">
+                                        {{ form.school_class }}
+                                    </div>
+                                    <label class="col-md-2 control-label">Admission Type</label>
+                                    <div class="col-md-4">{{ form.admission_type }}</div>
+                                </div>
+                                <div class="form-group">
+                                    <label class="col-md-5 control-label">Access to scholastic materials</label>
+                                    <div class="col-md-2">
+                                        {{ form.qf1B1_rdo }}
+                                        <span id="qf1B1_rdo_error"></span>
+                                    </div>
+                                    <div class="col-md-4"></div>
+                                    <div class="col-md-1"></div>
+                                </div>
+                                <div class="form-group">
+                                    <label class="col-md-5 control-label">School attendance</label>
+                                    <div class="col-md-2">
+                                        {{ form.qf1B1_rdo }}
+                                        <span id="qf1B1_rdo_error"></span>
+                                    </div>
+                                    <div class="col-md-4"></div>
+                                    <div class="col-md-1"></div>
+                                </div>
+                                <div class="form-group">
+                                    <label class="col-md-5 control-label">Academic perfomance (meet, exceeds or below expectation)</label>
+                                    <div class="col-md-2">
+                                        {{ form.qf1B1_rdo }}
+                                        <span id="qf1B1_rdo_error"></span>
+                                    </div>
+                                    <div class="col-md-4"></div>
+                                    <div class="col-md-1"></div>
+                                </div>
+                            </fieldset>
+                        </div>
+                        <!-- end wizard step-2 -->
+                        <!-- begin wizard step-3 -->
+                        <div>
+                            <fieldset>
+                            <legend class="pull-left width-full">C. PSYCHOSOCIAL AND EMOTIONAL WELLBEING</legend>
+
+                                <div class="form-group">
+                                    <label class="col-md-5 control-label">Who are the child's friends?</label>
+                                    <div class="col-md-2">
+                                        {{ form.qf1B1_rdo }}
+                                        <span id="qf1B1_rdo_error"></span>
+                                    </div>
+                                    <div class="col-md-4">What kind of things do they do together</div>
+                                    <div class="col-md-1"></div>
+                                </div>
+                                <div class="form-group">
+                                    <label class="col-md-5 control-label">How often do they interact?</label>
+                                    <div class="col-md-2">
+                                        {{ form.qf1B1_rdo }}
+                                        <span id="qf1B1_rdo_error"></span>
+                                    </div>
+                                    <div class="col-md-4">What are the childs's views on these peer friendships?</div>
+                                    <div class="col-md-1"></div>
+                                </div>
+                                <div class="form-group">
+                                    <label class="col-md-5 control-label">What is the quality of these friendships?</label>
+                                    <div class="col-md-2">
+                                        {{ form.qf1B1_rdo }}
+                                        <span id="qf1B1_rdo_error"></span>
+                                    </div>
+                                    <div class="col-md-4"></div>
+                                    <div class="col-md-1"></div>
+                                </div>
+                                <div class="form-group">
+                                    <label class="col-md-5 control-label">Are the perceived friends much older, younger or same age?</label>
+                                    <div class="col-md-2">
+                                        {{ form.qf1B1_rdo }}
+                                        <span id="qf1B1_rdo_error"></span>
+                                    </div>
+                                    <div class="col-md-4"></div>
+                                    <div class="col-md-1"></div>
+                                </div>
+                                <div class="form-group">
+                                    <label class="col-md-5 control-label">Level of attachment between the child and current caregiver:</label>
+                                    <div class="col-md-2">
+                                        {{ form.qf1B1_rdo }}
+                                        <span id="qf1B1_rdo_error"></span>
+                                    </div>
+                                    <div class="col-md-4"></div>
+                                    <div class="col-md-1"></div>
+                                </div>
+                                <div class="form-group">
+                                    <label class="col-md-5 control-label">Level of attachment to previous primary caregiver</label>
+                                    <div class="col-md-2">
+                                        {{ form.qf1B1_rdo }}
+                                        <span id="qf1B1_rdo_error"></span>
+                                    </div>
+                                    <div class="col-md-4"></div>
+                                    <div class="col-md-1"></div>
+                                </div>
+                                <div class="form-group">
+                                    <label class="col-md-5 control-label">Does the child exhibit any of the following? (tick all that apply)</label>
+                                    <div class="col-md-2">
+                                        {{ form.qf1B1_rdo }}
+                                        <span id="qf1B1_rdo_error"></span>
+                                    </div>
+                                    <div class="col-md-4"></div>
+                                    <div class="col-md-1"></div>
+                                </div>
+                                <div class="form-group">
+                                    <label class="col-md-5 control-label">Daily Routine</label>
+                                    <div class="col-md-2">
+                                        {{ form.qf1B1_rdo }}
+                                        <span id="qf1B1_rdo_error"></span>
+                                    </div>
+                                    <div class="col-md-4">Degree of independence</div>
+                                    <div class="col-md-1"></div>
+                                </div>
+                                <div class="form-group">
+                                    <label class="col-md-5 control-label">Likes</label>
+                                    <div class="col-md-2">
+                                        {{ form.qf1B1_rdo }}
+                                        <span id="qf1B1_rdo_error"></span>
+                                    </div>
+                                    <div class="col-md-4">Dislikes</div>
+                                    <div class="col-md-1"></div>
+                                </div>
+                                <div class="form-group">
+                                    <label class="col-md-5 control-label">Fears</label>
+                                    <div class="col-md-2">
+                                        {{ form.qf1B1_rdo }}
+                                        <span id="qf1B1_rdo_error"></span>
+                                    </div>
+                                    <div class="col-md-4">Skills and strength</div>
+                                    <div class="col-md-1"></div>
+                                </div>
+                            </fieldset>
+                        </div>
+                        <!-- end wizard step-3 -->
+                        <!-- begin wizard step-4 -->
+                        <div>
+                            <fieldset>
+                            <legend class="pull-left width-full"> CHILD PERSPECTIVE ON REINTEGRATION</legend>
+                                <div class="form-group">
+                                    <label class="col-md-5 control-label">Does the child express a preference for reunification/placement?</label>
+                                    <div class="col-md-2">
+                                        {{ form.qf1B1_rdo }}
+                                        <span id="qf1B1_rdo_error"></span>
+                                    </div>
+                                    <div class="col-md-4"></div>
+                                    <div class="col-md-1"></div>
+                                </div>
+                                <div class="form-group">
+                                    <label class="col-md-5 control-label">Does the child express concerns about reunification/placement?</label>
+                                    <div class="col-md-2">
+                                        {{ form.qf1B1_rdo }}
+                                        <span id="qf1B1_rdo_error"></span>
+                                    </div>
+                                    <div class="col-md-4"></div>
+                                    <div class="col-md-1"></div>
+                                </div>
+                            </fieldset>
+                        </div>
+                        <!-- end wizard step-4 -->
+                        <!-- begin wizard step-5 -->
+                        <div>
+                            <fieldset>
+                            <legend class="pull-left width-full"> ASSESSMENT CONCLUSION AND ACTIONS TO ADDRESS CHILD’S NEEDS</legend>
+                                <div class="form-group">
+                                    <label class="col-md-5 control-label">Strengths and resources</label>
+                                    <div class="col-md-2">
+                                        {{ form.qf1B1_rdo }}
+                                        <span id="qf1B1_rdo_error"></span>
+                                    </div>
+                                    <div class="col-md-4"></div>
+                                    <div class="col-md-1"></div>
+                                </div>
+                                <div class="form-group">
+                                    <label class="col-md-5 control-label">Needs or concerns</label>
+                                    <div class="col-md-2">
+                                        {{ form.qf1B1_rdo }}
+                                        <span id="qf1B1_rdo_error"></span>
+                                    </div>
+                                    <div class="col-md-4"></div>
+                                    <div class="col-md-1"></div>
+                                </div>
+                                <div class="form-group">
+                                    <label class="col-md-5 control-label">Additional observations</label>
+                                    <div class="col-md-2">
+                                        {{ form.qf1B1_rdo }}
+                                        <span id="qf1B1_rdo_error"></span>
+                                    </div>
+                                    <div class="col-md-4"></div>
+                                    <div class="col-md-1"></div>
+                                </div>
+                                <div class="form-group">
+                                    <label class="col-md-5 control-label">Things to be achieved</label>
+                                    <div class="col-md-2">
+                                        {{ form.qf1B1_rdo }}
+                                        <span id="qf1B1_rdo_error"></span>
+                                    </div>
+                                    <div class="col-md-4"></div>
+                                    <div class="col-md-1"></div>
+                                </div>
+                            </fieldset>
+                        </div>
+                    </div>
+                    <hr>                    
                     <div class="form-group">
-                        <label class="col-md-2 control-label">Date of Assessment</label>
+                        <label class="col-md-5 control-label">Date of Assessment</label>
                         <div class="col-md-2">
-                            {{ form.consent_date }}
+                            {{ form.event_date }}
                         </div>
-                        <div class="col-md-4">
-                        </div>
+                        <div class="col-md-5"></div>
                     </div>
                     
                     
                     <div class="form-group">
-                        <label class="col-md-2 control-label"></label>
+                        <label class="col-md-5 control-label"></label>
                         <div class="col-md-3">
                             <button type="submit" class="btn btn-sm btn-success">Submit Form {{ form_id }} details</button>
                         </div>
@@ -120,10 +456,97 @@ form#new-form-b ul {
 {% block lazy_javascript_code %}
 
 
+<script src="{% static 'plugins/bootstrap-wizard/js/bwizard.js' %}"></script>
 <script>
+//Class levels
+{% for key, values in levels.items %}
+    var {{ key }} = {{ values|safe }};
+{% endfor %}
+
 $(document).ready(function() {
-    $('#consent_date').datepicker({ endDate: '0y', format: 'dd-M-yyyy' });
+    $('#event_date, .event_date').datepicker({ endDate: '0y', format: 'dd-M-yyyy' });
+
+    $("#wizard").bwizard({ validating: function (e, ui) { }            
+    });
+
+    //School query
+    var s_level = $('#school_level').val();
+    $( "#school_name" ).autocomplete({
+        source: function( request, response ) {
+        $.ajax({
+          url: "{% url 'ovc_search' %}",
+          dataType: "json",
+          data: {q: request.term, id: 2, level: $('#school_level').val()},
+          success: function( data ) {
+            response( data );
+          }
+        });
+      },
+      minLength: 4,
+      select: function( event, ui ) {
+         $('#school_name').val(ui.item.name);
+         $('#school_id').val(ui.item.id);
+      },
+      open: function() {
+        $( this ).removeClass( "ui-corner-all" ).addClass( "ui-corner-top" );
+      },
+      close: function() {
+        $( this ).removeClass( "ui-corner-top" ).addClass( "ui-corner-all" );
+      }
+    });
+
+    // Handle school levels
+    var sval = $('#school_level').val();
+    handle_education(sval);
+    handle_levels(sval);
+    $('#school_level').change(function(){
+        handle_education(this.value);
+        handle_levels(this.value);
+    });
+    $('#school_class').val('{{ sch_class }}');
+
 });
 
+
+function handle_levels(person_type){
+    var default_txt = "<option value=''>Select Class</option>";
+    if (person_type != ''){
+        var person_txt = ((eval(person_type)).length == 1) ? '' : default_txt;
+    }else{
+        var person_txt = "<option value=''>Select Class</option>";
+    }
+    $('#school_class').html(person_txt);
+    if (person_type != ''){
+        eval(person_type).forEach(function(tts) {
+            var tts_attribs = tts.split(",");
+            $('#school_class')
+                .append($("<option></option>")
+                .attr("value", tts_attribs[0])
+                .text(tts_attribs[1]));
+        });
+    }else{
+         $('#school_class').append('<option></option>'); 
+    }
+}
+
+
+function handle_education(hlevel){
+    if ((hlevel == 'SLNS') || (hlevel == '')) {
+        $('#school_details_div').hide();
+        $('#class_details_div').hide();
+        $('#school_name').attr("data-parsley-required", "false");
+        $('#school_id').attr("data-parsley-required", "false");
+        $('#school_class').attr("data-parsley-required", "false");
+        $('#admission_type').attr("data-parsley-required", "false");
+    }else{
+        $('#school_details_div').show();
+        $('#class_details_div').show();
+        $('#school_name').attr("data-parsley-required", "true");
+        $('#school_id').attr("data-parsley-required", "true");
+        $('#school_class').attr("data-parsley-required", "true");
+        $('#admission_type').attr("data-parsley-required", "true");
+    }
+
+}
 </script>
 {% endblock %}

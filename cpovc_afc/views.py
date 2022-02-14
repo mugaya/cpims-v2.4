@@ -8,13 +8,19 @@ from django.db.models import Count
 from cpovc_forms.forms import OVCSearchForm
 from cpovc_forms.functions import get_person_ids
 from .models import AFCMain, AFCEvents, AFCForms
-from .forms import AltCareForm, AFCFormA
+from .forms import (
+    AltCareForm, AFCForm1A, AFCForm1B, AFCForm2A, AFCForm4A, AFCForm5A,
+    AFCForm7A, AFCForm8A, AFCForm9A, AFCForm10A, AFCForm12A, AFCForm14A)
 from cpovc_registry.models import (
     RegPerson, RegPersonsSiblings, RegPersonsExternalIds, RegPersonsGeo)
 from cpovc_forms.models import OVCCaseRecord, OVCCaseCategory
 from cpovc_main.functions import get_dict
-from .functions import handle_alt_care, save_altcare_form
+from .functions import (
+    handle_alt_care, save_altcare_form, get_area, get_class_levels,
+    get_education)
 from .settings import FMS, CTS
+
+# from cpovc_ovc.decorators import validate_ovc
 
 
 @login_required
@@ -186,15 +192,31 @@ def alt_care_form(request, cid, form_id, case_id, ev_id=0):
                         idata[qid] = []
                     idata[qid].append(q_item)
             print('idata', idata)
-        form = get_form(form_id, idata)
         form_name = FMS[form_id] if form_id in FMS else 'Default'
         case = AFCMain.objects.get(is_void=False, case_id=case_id)
         person_id = case.person_id
+        # Get education
+        sch_class = ''
+        ed = get_education(person_id)
+        if ed:
+            sch_class = ed.school_class
+            idata['school_level'] = ed.school_level
+            idata['school'] = ed.school_id
+            idata['school_name'] = ed.school.school_name
+            idata['school_class'] = sch_class
+            idata['admission_type'] = ed.admission_type
         # Get persons registry info
-        geos = RegPersonsGeo.objects.filter(
+        geos = {}
+        geo_locs = RegPersonsGeo.objects.filter(
             person_id=person_id, is_void=False)
-        for geo in geos:
-            print('Geo', geo)
+        for geo in geo_locs:
+            geos[geo.area.area_type_id] = geo.area.area_name
+            if geo.area.area_type_id == 'GDIS':
+                a_id = geo.area.parent_area_id
+                a_name = get_area(a_id)
+                geos['GPRV'] = a_name
+        # Class levels
+        levels = get_class_levels()
         siblings = RegPersonsSiblings.objects.select_related().filter(
             child_person=person_id, is_void=False, date_delinked=None)
         extids = RegPersonsExternalIds.objects.filter(
@@ -204,7 +226,6 @@ def alt_care_form(request, cid, form_id, case_id, ev_id=0):
             ext_ids[str(extid.identifier_type_id)] = extid.identifier
         # Save submitted records
         if request.method == 'POST':
-            form.data = request.POST
             res = save_altcare_form(request, form_id)
             if res:
                 url = reverse(
@@ -212,13 +233,18 @@ def alt_care_form(request, cid, form_id, case_id, ev_id=0):
             msg = 'Form - %s saved successfully' % (form_id)
             messages.add_message(request, messages.INFO, msg)
             return HttpResponseRedirect(url)
+        print('idata', idata)
+        form = get_form(form_id, idata)
         tmpl = 'afc/new_form_%s.html' % (form_id)
         case_uid = str(case_id).replace('-', '')
+        case_num = '%s/%s' % (str(case.case_number).zfill(6), 2022)
         return render(request, tmpl,
                       {'status': 200, 'case': case, 'form_id': form_id,
-                       'form_name': form_name, 'vals': vals,
+                       'form_name': form_name, 'vals': vals, 'geos': geos,
                        'form': form, 'case_id': case_uid, 'cid': cid,
-                       'siblings': siblings, 'ext_ids': ext_ids})
+                       'siblings': siblings, 'ext_ids': ext_ids,
+                       'levels': levels, 'sch_class': sch_class,
+                       'case_num': case_num})
     except Exception as e:
         raise e
 
@@ -226,9 +252,29 @@ def alt_care_form(request, cid, form_id, case_id, ev_id=0):
 def get_form(form_id, initial_data):
     """ Get the forms by ids."""
     try:
-        form = AFCFormA(initial=initial_data)
-        if form_id == 'A':
-            form = AFCFormA(initial=initial_data)
+        form = AltCareForm(initial=initial_data)
+        if form_id == '1A':
+            form = AFCForm1A(initial=initial_data)
+        elif form_id == '1B':
+            form = AFCForm1B(initial=initial_data)
+        elif form_id == '2A':
+            form = AFCForm2A(initial=initial_data)
+        elif form_id == '4A':
+            form = AFCForm4A(initial=initial_data)
+        elif form_id == '5A':
+            form = AFCForm5A(initial=initial_data)
+        elif form_id == '7A':
+            form = AFCForm7A(initial=initial_data)
+        elif form_id == '8A':
+            form = AFCForm8A(initial=initial_data)
+        elif form_id == '9A':
+            form = AFCForm9A(initial=initial_data)
+        elif form_id == '10A':
+            form = AFCForm10A(initial=initial_data)
+        elif form_id == '12A':
+            form = AFCForm12A(initial=initial_data)
+        elif form_id == '14A':
+            form = AFCForm14A(initial=initial_data)
     except Exception as e:
         raise e
     else:

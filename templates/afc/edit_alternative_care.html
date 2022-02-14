@@ -22,7 +22,7 @@
 <!-- begin breadcrumb -->
 <ol class="breadcrumb pull-right">
 	<li><a href="#">Home</a></li>
-	<li class="active">CTiP</li>
+	<li class="active">Alternative Care</li>
 </ol>
 <!-- end breadcrumb -->
 <!-- begin page-header -->
@@ -77,12 +77,12 @@
                     <a href="#" class="btn btn-sm btn-danger m-b-10"><i class="fa fa-download m-r-5"></i> Export as PDF</a>
                     <a href="{% url 'view_alt_care' case_id=case.case_id|stringformat:'s' %}" class="btn btn-sm btn-success m-b-10"><i class="fa fa-mail-reply-all m-r-5"></i> Back to Care details</a>
                     </span>
-                    Case No: XXXXX/YYYY
+                    Case No: {{ case.case_number }}
                 </div>
             </div>
             <!-- start panel body -->
             <div class="panel-body">
-                <form id="formCaseinfo" method="POST" data-parsley-validate="true">
+                <form class="form-horizontal" id="formCaseinfo" method="POST" data-parsley-validate="true">
                     {% csrf_token %}
                 <table class="table table-profile">
                     <thead>
@@ -114,29 +114,50 @@
                             <td></td>
                         </tr>
                         <tr>
-                            <td class="field">Categories</td>
-                            <td>
-                                {% for ct in categories %}
-                                    {{ ct.case_category|gen_value:vals }}
-                                {% endfor %}
+                            <td colspan="2">
+                                <div class="row">
+                                    <div class="form-group">
+                                        <label class="col-md-3 control-label"> Case categories</label>
+                                        <div class="col-md-4">
+                                            {% for ct in categories %}
+                                                {{ ct.case_category|gen_value:vals }}
+                                            {% endfor %}
+                                        </div>
+                                        <div class="col-md-5"></div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="col-md-3 control-label"> Care Option</label>
+                                        <div class="col-md-4">
+                                            {{ form.care_option }}
+                                        </div>
+                                        <div class="col-md-5"></div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="col-md-3 control-label"> Reasons for admission (tick all that apply)</label>
+                                        <div class="col-md-4">
+                                            {{ form.qf1A1 }}
+                                        </div>
+                                        <div class="col-md-5"></div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="col-md-3 control-label"> Date of admission</label>
+                                        <div class="col-md-4">
+                                            {{ form.case_date }}
+                                        </div>
+                                        <div class="col-md-5"></div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="col-md-3 control-label"></label>
+                                        <div class="col-md-4">
+                                            <button class="btn btn-sm btn-primary m-r-5 btnNewcase"><i class="fa fa-save m-r-5"></i> Update Care details</button>
+                                        </div>
+                                        <div class="col-md-5"></div>
+                                    </div>
+                                </div>                                
                             </td>
-                        </tr>
-                        <tr>
-                            <td class="field">Care Option</td>
-                            <td>{{ form.care_option }}</td>
-                        </tr>
-                        <tr>
-                            <td class="field">Date of admission</td>
-                            <td>{{ form.case_date }}</td>
                         </tr>
                         <tr class="divider">
                             <td colspan="2"></td>
-                        </tr>
-                        <tr class="highlight">
-                            <td class="field"></td>
-                            <td>
-                                <button class="btn btn-sm btn-primary m-r-5 btnNewcase"><i class="fa fa-save m-r-5"></i> Edit Care details</button>
-                            </td>
                         </tr>
                     </tbody>
                 </table>

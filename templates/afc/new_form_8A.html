@@ -9,6 +9,7 @@
 {% block style_code %}
 <link href="{% static 'plugins/parsley/src/parsley.css' %}" rel="stylesheet" />
 <link href="{% static 'plugins/bootstrap-datepicker/css/datepicker3.css' %}" rel="stylesheet" />
+<link href="{% static 'plugins/bootstrap-wizard/css/bwizard.min.css' %}" rel="stylesheet" />
 <style type="text/css">
 form#new-form-b ul {
       list-style-type: none;
@@ -65,11 +66,12 @@ form#new-form-b ul {
                 </div>
             </div>
             <div class="panel-body">
-                <form class="form-horizontal" method="POST" id="new-form-a" action="." data-parsley-validate="true">
+                <form class="form-horizontal" method="POST" id="new-form-8A" action="." data-parsley-validate="true">
                     {% csrf_token %}
                     <input type="hidden" name="form_id" value="{{ form_id }}">
                     <input type="hidden" name="case_id" value="{{ case.case_id }}">
                     <input type="hidden" name="person_id" value="{{ case.person.id }}">
+                    <input type="hidden" name="care_id" value="{{ case.care_id }}">
                     <div class="form-group">
                         <label class="col-md-2 control-label">Child Names</label>
                         <div class="col-md-3">
@@ -77,7 +79,7 @@ form#new-form-b ul {
                         </div>
                         <label class="col-md-2 control-label">Sex</label>
                         <div class="col-md-3">{{ case.person.sex_id|gen_value:vals }}</div>
-                        <div class="col-md-1"></div>
+                        <div class="col-md-2"></div>
                     </div>
                     
                     <div class="form-group">
@@ -87,22 +89,464 @@ form#new-form-b ul {
                         </div>
                         <label class="col-md-2 control-label">Age</label>
                         <div class="col-md-3">{{ case.person.age }}</div>
-                        <div class="col-md-1"></div>
+                        <div class="col-md-2"></div>
                     </div>
-                    
+                    <hr>
+                    <div id="wizard">
+                        <ol>
+                            <li>
+                                A. EDUCATION
+                                <small>Education.</small>
+                            </li>
+                            <li>
+                                B. PROTECTION AND SAFETY
+                                <small>Protection and safety</small>
+                            </li>
+                            <li>
+                                C. PSYCHOSOCIAL WELL-BEING
+                                <small>Psychosocial Well-Being and Community Belonging</small>
+                            </li>
+                            <li>
+                                D. HEALTH AND DEVELOPMENT
+                                <small>Health and development</small>
+                            </li>
+                            <li>
+                                E. RELATIONSHIP AND ATTACHMENT
+                                <small>Young Adult–Caregiver/Mentor Relationship and Attachment.</small>
+                            </li>
+                            <li>
+                                F. ECONOMIC STABILITY
+                                <small>Economic stability.</small>
+                            </li>
+                        </ol>
+                        <!-- begin wizard step-1 -->
+                        <div>
+                        <fieldset>
+                            <legend class="pull-left width-full">Education</legend>
+                            <p><strong>Education: Accessing, attending and progressing.</strong></p>
+
+                            <div class="form-group">
+                                <label class="col-md-8 pull-left"> 1.1 The young adult can move safely to education facility/school. (Note. If child cannot move safely, then case cannot be closed.)</label>
+                                <div class="col-md-1">
+                                    {{ form.qf8A1_rdo }}
+                                </div>
+                                <div class="col-md-2"><span id="qf8A1_rdo_error"></span></div>
+                                <div class="col-md-1"></div>
+                            </div>
+                            <div class="form-group">
+                                <label class="col-md-8"> 1.2 There is evidence of education program enrolment (i.e., receipt)</label>
+                                <div class="col-md-3">
+                                    {{ form.qf8A1_rdo }}
+                                </div>
+                                <div class="col-md-1"></div>
+                            </div>
+                            <div class="form-group">
+                                <label class="col-md-8"> 1.3 The young adult’s report card confirms regular attendance (i.e., not missing more than 5 days per month) and shows appropriate progression.</label>
+                                <div class="col-md-3">
+                                    {{ form.qf8A1_rdo }}
+                                </div>
+                                <div class="col-md-1"></div>
+                            </div>
+                            <div class="form-group">
+                                <label class="col-md-8"> 1.4 The young adult has all the required education materials (e.g., uniform, shoes, books, toolkits).</label>
+                                <div class="col-md-3">
+                                    {{ form.qf8A1_rdo }}
+                                </div>
+                                <div class="col-md-1"></div>
+                            </div>
+                            <div class="form-group">
+                                <label class="col-md-8"> 1.5 The young adult reports feeling positive about his/her school or college performance.</label>
+                                <div class="col-md-3">
+                                    {{ form.qf8A1_rdo }}
+                                </div>
+                                <div class="col-md-1"></div>
+                            </div>
+                            <div class="form-group">
+                                <label class="col-md-8"> 1.6 The young adult reports enjoying education.</label>
+                                <div class="col-md-3">
+                                    {{ form.qf8A1_rdo }}
+                                </div>
+                                <div class="col-md-1"></div>
+                            </div>
+                            <div class="form-group">
+                                <label class="col-md-8"> 1.7 The school has hygiene facilities inclusive for adolescent girls. (Hint: Observe and ask young adult directly to confirm that menstruation does not present a barrier to attendance. This question is not applicable to boys; therefore, score 1.)</label>
+                                <div class="col-md-3">
+                                    {{ form.qf8A1_rdo }}
+                                </div>
+                                <div class="col-md-1"></div>
+                            </div>
+
+                            <p><strong>Education: Inclusive.</strong></p>
+                            <div class="form-group">
+                                <label class="col-md-8"> 2.1 The school is physically accessible for the child (including classrooms, washrooms, recreational areas, and so forth).</label>
+                                <div class="col-md-3">
+                                    {{ form.qf8A1_rdo }}
+                                </div>
+                                <div class="col-md-1"></div>
+                            </div>
+                            <div class="form-group">
+                                <label class="col-md-8"> 2.2 The teacher is aware of young adult’s special needs and/or circumstances.</label>
+                                <div class="col-md-3">
+                                    {{ form.qf8A1_rdo }}
+                                </div>
+                                <div class="col-md-1"></div>
+                            </div>
+                            <div class="form-group">
+                                <label class="col-md-8"> 2.3 The teachers are using inclusive teaching practices to meet the young adult’s specific needs or circumstances.</label>
+                                <div class="col-md-3">
+                                    {{ form.qf8A1_rdo }}
+                                </div>
+                                <div class="col-md-1"></div>
+                            </div>
+                            <div class="form-group">
+                                <label class="col-md-8">2.4 Stigma is not a barrier to young adult attending school.</label>
+                                <div class="col-md-3">
+                                    {{ form.qf8A1_rdo }}
+                                </div>
+                                <div class="col-md-1"></div>
+                            </div>
+                        </fieldset>
+                    </div>
+                    <!-- end wizard step-1 -->
+                    <!-- begin wizard step-2 -->
+                    <div>
+                    <fieldset>
+                        <legend class="pull-left width-full">PROTECTION AND SAFETY</legend>
+                        <p><strong>Protection and Safety: Safe.</strong></p>
+
+                        <div class="form-group">
+                            <label class="col-md-8">3.1 The young adult is currently free of violence, exploitation or exposure to violence at home, at school, in the community, and online. <small>(Note. If there is presence of violence, initiate child protection reporting protocol.)</small></label>
+                            <div class="col-md-3">
+                                {{ form.qf8A1_rdo }}
+                            </div>
+                            <div class="col-md-1"></div>
+                        </div>
+                        <div class="form-group">
+                            <label class="col-md-8">3.2 The young adult can articulate appropriate ways to report and respond to violence.</label>
+                            <div class="col-md-3">
+                                {{ form.qf8A1_rdo }}
+                            </div>
+                            <div class="col-md-1"></div>
+                        </div>
+                        <div class="form-group">
+                            <label class="col-md-8">3.3 The young adult can clearly articulate and give examples of how to manage stress in nonviolent manner.</label>
+                            <div class="col-md-3">
+                                {{ form.qf8A1_rdo }}
+                            </div>
+                            <div class="col-md-1"></div>
+                        </div>
+                        <div class="form-group">
+                            <label class="col-md-8">3.4 The young adult can articulate appropriate ways to keep himself/herself safe.</label>
+                            <div class="col-md-3">
+                                {{ form.qf8A1_rdo }}
+                            </div>
+                            <div class="col-md-1"></div>
+                        </div>
+                        <div class="form-group">
+                            <label class="col-md-8">3.5 The young adult can report an absence of violent discipline.</label>
+                            <div class="col-md-3">
+                                {{ form.qf8A1_rdo }}
+                            </div>
+                            <div class="col-md-1"></div>
+                        </div>
+                        <div class="form-group">
+                            <label class="col-md-8">3.6 When there has been violence, the case plan and referral documentation confirm services have been accessed and met the intended purpose.</label>
+                            <div class="col-md-3">
+                                {{ form.qf8A1_rdo }}
+                            </div>
+                            <div class="col-md-1"></div>
+                        </div>
+                    </fieldset>
+                    </div>
+                    <!-- end wizard step-2 -->
+                    <!-- begin wizard step-3 -->
+                    <div>
+                    <fieldset>
+                        <legend class="pull-left width-full">PSYCHOSOCIAL WELL-BEING</legend>
+                        <p><strong>Psychosocial Well-Being and Community Belonging: Self-esteem and resilience</strong></p>
+                        <div class="form-group">
+                            <label class="col-md-8">4.1 The young adult can provide examples of how he/she problem solves in constructive ways.</label>
+                            <div class="col-md-3">
+                                {{ form.qf8A1_rdo }}
+                            </div>
+                            <div class="col-md-1"></div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="col-md-8">4.2 The young adult is able to provide examples of how he/she independently solved challenges in his/her life in the past 3 months.</label>
+                            <div class="col-md-3">
+                                {{ form.qf8A1_rdo }}
+                            </div>
+                            <div class="col-md-1"></div>
+                        </div>
+                        <div class="form-group">
+                            <label class="col-md-8">4.3 The young adult displays an overall positive demeanor.</label>
+                            <div class="col-md-3">
+                                {{ form.qf8A1_rdo }}
+                            </div>
+                            <div class="col-md-1"></div>
+                        </div>
+                        <div class="form-group">
+                            <label class="col-md-8">4.4 The young adult expresses a vision and his/her hopes for his/her family’s future life.</label>
+                            <div class="col-md-3">
+                                {{ form.qf8A1_rdo }}
+                            </div>
+                            <div class="col-md-1"></div>
+                        </div>
+                        <div class="form-group">
+                            <label class="col-md-8">4.5 There is an absence of (a) extreme sadness all the time, (b) no interest in enjoyable activities, (c) change of appetite for food.</label>
+                            <div class="col-md-3">
+                                {{ form.qf8A1_rdo }}
+                            </div>
+                            <div class="col-md-1"></div>
+                        </div>
+                        <p><strong>Psychosocial Well-Being and Community Belonging: Accessing social support services.</strong></p>
+
+                        <div class="form-group">
+                            <label class="col-md-8">5.1 The young adult is able to articulate where to access support services for himself/herself.</label>
+                            <div class="col-md-3">
+                                {{ form.qf8A1_rdo }}
+                            </div>
+                            <div class="col-md-1"></div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="col-md-8">5.2 Where services were needed, the young adult is able to access them.</label>
+                            <div class="col-md-3">
+                                {{ form.qf8A1_rdo }}
+                            </div>
+                            <div class="col-md-1"></div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="col-md-8">5.3 The case plan and referral documentation confirm services have been accessed and met for the intended purpose.</label>
+                            <div class="col-md-3">
+                                {{ form.qf8A1_rdo }}
+                            </div>
+                            <div class="col-md-1"></div>
+                        </div>
+                        <div class="form-group">
+                            <label class="col-md-8">5.4 The young adult has a national identification card (ID), where necessary.</label>
+                            <div class="col-md-3">
+                                {{ form.qf8A1_rdo }}
+                            </div>
+                            <div class="col-md-1"></div>
+                        </div>
+                        <div class="form-group">
+                            <label class="col-md-8">5.5 The young adult has a birth certificate.</label>
+                            <div class="col-md-3">
+                                {{ form.qf8A1_rdo }}
+                            </div>
+                            <div class="col-md-1"></div>
+                        </div>
+
+                        <p><strong>Psychosocial Well-Being and Community Belonging: Accepted</strong></p>
+                        <div class="form-group">
+                            <label class="col-md-8">6.1 The young adult participated in a community activity in the past 3 months (e.g., extended family, football matches, fundraising, wedding, funeral).</label>
+                            <div class="col-md-3">
+                                {{ form.qf8A1_rdo }}
+                            </div>
+                            <div class="col-md-1"></div>
+                        </div>
+                        <div class="form-group">
+                            <label class="col-md-8">6.2 The young adult is able to participate in daily activities in the community (e.g., playing or talking with other family members or friends).</label>
+                            <div class="col-md-3">
+                                {{ form.qf8A1_rdo }}
+                            </div>
+                            <div class="col-md-1"></div>
+                        </div>
+                        <div class="form-group">
+                            <label class="col-md-8">6.3 The young adult is a member of a community group (e.g., church, mosque, peer support group, adolescent club, adolescent savings group).</label>
+                            <div class="col-md-3">
+                                {{ form.qf8A1_rdo }}
+                            </div>
+                            <div class="col-md-1"></div>
+                        </div>
+                        <div class="form-group">
+                            <label class="col-md-8">6.4 The young adult can identify people in his/her community that he/she can talk to and/or seek help from.</label>
+                            <div class="col-md-3">
+                                {{ form.qf8A1_rdo }}
+                            </div>
+                            <div class="col-md-1"></div>
+                        </div>
+                    </fieldset>
+                    </div>
+                    <!-- end wizard step-3 -->
+                    <!-- begin wizard step-4 -->
+                    <div>
+                    <fieldset>
+                        <legend class="pull-left width-full">HEALTH AND DEVELOPMENT</legend>
+
+                        <p><strong>Health and Development: Nourished.</strong></p>
+                        <div class="form-group">
+                            <label class="col-md-8">7.1 The young adult eats a balanced meal (must have proteins, carbohydrates and vitamins) at least twice per day.</label>
+                            <div class="col-md-3">
+                                {{ form.qf8A1_rdo }}
+                            </div>
+                            <div class="col-md-1"></div>
+                        </div>
+                        <p><strong>Health and Development: Developing.</strong></p>
+
+                        <div class="form-group">
+                            <label class="col-md-8">8.1 The young adult is aware of and able to articulate adolescent development changes (e.g., physical, emotional, identity).</label>
+                            <div class="col-md-3">
+                                {{ form.qf8A1_rdo }}
+                            </div>
+                            <div class="col-md-1"></div>
+                        </div>
+                        <div class="form-group">
+                            <label class="col-md-8">8.2 If young adult has a developmental delay, the case plan and referral documentation confirm that services have been accessed and have met the intended purpose.</label>
+                            <div class="col-md-3">
+                                {{ form.qf8A1_rdo }}
+                            </div>
+                            <div class="col-md-1"></div>
+                        </div>
+
+                        <p><strong>Health and Development: Accessing.</strong></p>
+                        <div class="form-group">
+                            <label class="col-md-8">9.1 If the young adult was referred for treatment, services were accessed and met the intended purpose. (Hint: Look for evidence of complete referral, such as returned referral slips, report from caregiver/mentor/service providers.)</label>
+                            <div class="col-md-3">
+                                {{ form.qf8A1_rdo }}
+                            </div>
+                            <div class="col-md-1"></div>
+                        </div>
+                        <div class="form-group">
+                            <label class="col-md-8">9.2 If the young adult has a chronic illness or disability, he/she is conversant in her/his treatment regimen, as necessary.</label>
+                            <div class="col-md-3">
+                                {{ form.qf8A1_rdo }}
+                            </div>
+                            <div class="col-md-1"></div>
+                        </div>
+                    </fieldset>
+                    </div>
+                    <!-- end wizard step-4 -->
+                    <!-- begin wizard step-5 -->
+                    <div>
+                    <fieldset>
+                        <legend class="pull-left width-full">RELATIONSHIP AND ATTACHMENT</legend>
+
+                        <p><strong>Young Adult–Caregiver/Mentor Relationship and Attachment: Quality time and positive communication</strong></p>
+
+                        <div class="form-group">
+                            <label class="col-md-8">10.1 The young adult feels his/her mentor know his/her likes, dislikes and what makes him/her happy or sad.</label>
+                            <div class="col-md-3">
+                                {{ form.qf8A1_rdo }}
+                            </div>
+                            <div class="col-md-1"></div>
+                        </div>
+                        <div class="form-group">
+                            <label class="col-md-8">10.2 The young adult expresses that he/she spends time with his/her caregiver/mentor and enjoys this time. <small>(Hint: Probe into what kind of activities they do together and how frequently, and observe the young adult’s nonverbal cues.).</small></label>
+                            <div class="col-md-3">
+                                {{ form.qf8A1_rdo }}
+                            </div>
+                            <div class="col-md-1"></div>
+                        </div>
+
+                        <p><strong>Young Adult–Caregiver/Mentor Relationship and Attachment: Consistency.</strong></p>
+                        <div class="form-group">
+                            <label class="col-md-8">11.1 If the young adult was sick in the past 3 months, he/she confirms that his/her caregiver/mentor took care of him/her.</label>
+                            <div class="col-md-3">
+                                {{ form.qf8A1_rdo }}
+                            </div>
+                            <div class="col-md-1"></div>
+                        </div>
+                        <div class="form-group">
+                            <label class="col-md-8">11.2 The young adult seeks support and comfort from the caregiver/mentor in response to stressors.</label>
+                            <div class="col-md-3">
+                                {{ form.qf8A1_rdo }}
+                            </div>
+                            <div class="col-md-1"></div>
+                        </div>
+                        <div class="form-group">
+                            <label class="col-md-8">11.3 The young adult easily articulates the rules of the house and the consequences should the rules be broken.</label>
+                            <div class="col-md-3">
+                                {{ form.qf8A1_rdo }}
+                            </div>
+                            <div class="col-md-1"></div>
+                        </div>
+                        <div class="form-group">
+                            <label class="col-md-8">11.4 The young adult feels that rules and consequences are applied consistently.</label>
+                            <div class="col-md-3">
+                                {{ form.qf8A1_rdo }}
+                            </div>
+                            <div class="col-md-1"></div>
+                        </div>
+                    </fieldset>
+                    </div>
+                    <!-- end wizard step-5 -->
+                    <!-- begin wizard step-6 -->
+                    <div>
+                    <fieldset>
+                        <legend class="pull-left width-full">ECONOMIC STABILITY</legend>
+
+                        <p><strong>Economic Stability: Stable</strong></p>
+
+                        <div class="form-group">
+                            <label class="col-md-8">12.1 The young adult has a stable source of income (e.g., business, formal employment, cash transfer) and/or productive assets (e.g. livestock, poultry). <small>(Note. This is not applicable for young adult younger than age 18 years.)</small></label>
+                            <div class="col-md-3">
+                                {{ form.qf8A1_rdo }}
+                            </div>
+                            <div class="col-md-1"></div>
+                        </div>
+                        <div class="form-group">
+                            <label class="col-md-8">12.2 The young adult has regular savings (e.g., active participation in a village savings and loan association or Savings and Internal Lending Community).</label>
+                            <div class="col-md-3">
+                                {{ form.qf8A1_rdo }}
+                            </div>
+                            <div class="col-md-1"></div>
+                        </div>
+                        <div class="form-group">
+                            <label class="col-md-8">12.3 The young adult can provide examples of how he/she met regular and planned expenses (e.g., food, clothing, shelter, school) in the past 3 months.</label>
+                            <div class="col-md-3">
+                                {{ form.qf8A1_rdo }}
+                            </div>
+                            <div class="col-md-1"></div>
+                        </div>
+                        <div class="form-group">
+                            <label class="col-md-8">12.4 The young adult can provide examples of how he/she met emergency expenses in the past 3 months.</label>
+                            <div class="col-md-3">
+                                {{ form.qf8A1_rdo }}
+                            </div>
+                            <div class="col-md-1"></div>
+                        </div>
+                        <div class="form-group">
+                            <label class="col-md-8">12.5 The young adult was able to pay all the required medical expenses in the past 3 months.</label>
+                            <div class="col-md-3">
+                                {{ form.qf8A1_rdo }}
+                            </div>
+                            <div class="col-md-1"></div>
+                        </div>
+                        <div class="form-group">
+                            <label class="col-md-8">12.6 The young adult can articulate plans to meet emergency expenses for the household.</label>
+                            <div class="col-md-3">
+                                {{ form.qf8A1_rdo }}
+                            </div>
+                            <div class="col-md-1"></div>
+                        </div>
+                        <div class="form-group">
+                            <label class="col-md-8">12.7 The young adult can articulate plans for regular (e.g., food) and periodic (e.g., school fees) expenses.</label>
+                            <div class="col-md-3">
+                                {{ form.qf8A1_rdo }}
+                            </div>
+                            <div class="col-md-1"></div>
+                        </div>
+                    </fieldset>
+                    </div>
+                </div>
+                    <!-- end wizard step-6 -->
                     <div class="form-group">
-                        <label class="col-md-2 control-label">Date</label>
+                        <label class="col-md-4 control-label">Date review completed</label>
                         <div class="col-md-2">
-                            {{ form.consent_date }}
+                            {{ form.event_date }}
                         </div>
-                        <div class="col-md-4">
+                        <div class="col-md-2">
                         </div>
                     </div>
                     
                     
                     <div class="form-group">
-                        <label class="col-md-2 control-label"></label>
-                        <div class="col-md-3">
+                        <label class="col-md-4"></label>
+                        <div class="col-md-4">
                             <button type="submit" class="btn btn-sm btn-success">Submit Form {{ form_id }} details</button>
                         </div>
                     </div>
@@ -118,11 +562,13 @@ form#new-form-b ul {
 {% endblock %}
 
 {% block lazy_javascript_code %}
-
-
+<script src="{% static 'plugins/bootstrap-wizard/js/bwizard.js' %}"></script>
 <script>
+
 $(document).ready(function() {
-    $('#consent_date').datepicker({ endDate: '0y', format: 'dd-M-yyyy' });
+    $('#event_date').datepicker({ endDate: '0y', format: 'dd-M-yyyy' });
+
+    $("#wizard").bwizard();
 });
 
 </script>
